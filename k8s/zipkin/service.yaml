@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: zipkin-service # This name is used by other services to connect to Zipkin
+  namespace: ecommerce-app # Namespace where the service is deployed
+  labels:
+    app: zipkin
+spec:
+  type: ClusterIP # Exposes the service on a cluster-internal IP
+  ports:
+  - port: 9411      # Port the service will be available on
+    targetPort: 9411 # Port on the Zipkin pod
+    protocol: TCP
+    name: http
+  selector:
+    app: zipkin     # Selects pods with label 'app: zipkin' 

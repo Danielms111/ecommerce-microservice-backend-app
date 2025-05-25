@@ -1,0 +1,39 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = "${env.JOB_NAME}".toLowerCase()
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git 'https://github.com/Danielms111/ecommerce-microservice-backend-app.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh './mvnw clean package -DskipTests'
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                sh "docker build -t $IMAGE_NAME:latest ."
+            }
+        }
+
+        stage('Docker Run Test') {
+            steps {
+                sh "docker run --rm $IMAGE_NAME:latest"
+            }
+        }
+
+        stage('K8s Deploy') {
+            steps {
+                sh "kubectl apply -f k8s/${IMAGE_NAME}/deployment.yaml"
+            }
+        }
+    }
+}
