@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: service-discovery
-  namespace: ecommerce-app
+  #namespace: ecommerce-app
   labels:
     app: service-discovery
 spec:

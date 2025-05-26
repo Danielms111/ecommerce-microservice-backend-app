@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: cloud-config
-  namespace: ecommerce-app
+  #namespace: ecommerce-app
   labels:
     app: cloud-config
 spec:
