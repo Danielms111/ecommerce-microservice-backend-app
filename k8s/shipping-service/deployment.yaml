@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: shipping-service
-  #namespace: ecommerce-app
+  namespace: ecommerce-app
   labels:
     app: shipping-service
 spec:
@@ -18,7 +18,7 @@ spec:
       containers:
         - name: shipping-service
           image: danielm11/shipping-service:latest
-          imagePullPolicy: IfNotPresent 
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8600
           resources:
@@ -69,7 +69,7 @@ spec:
             # Variables para estabilizar la inicialización
             - name: SPRING_CLOUD_REFRESH_ENABLED
               value: "false"
-          
+
             - name: JAVA_TOOL_OPTIONS
               value: "-Dspring.cloud.loadbalancer.ribbon.enabled=false"
           volumeMounts:

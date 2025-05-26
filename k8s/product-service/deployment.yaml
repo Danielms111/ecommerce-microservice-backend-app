@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: product-service
-  #namespace: ecommerce-app
+  namespace: ecommerce-app
   labels:
     app: product-service
 spec:
@@ -99,4 +99,4 @@ spec:
               - key: "common-services.properties"
                 path: "common-services.properties"
               - key: "product-service.properties"
-                path: "product-service.properties" 
+                path: "product-service.properties"
