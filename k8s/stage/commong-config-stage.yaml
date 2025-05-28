@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ecommerce-stage
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: ecommerce-stage
+data:
+  environment: "staging"
+  log-level: "INFO"
+  replicas: "2"
