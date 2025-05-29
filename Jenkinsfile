@@ -34,19 +34,9 @@ pipeline {
         stage('Unit Tests') {
             steps {
                 echo 'Skipping unit tests for now - will be implemented later'
+                // TODO: Implement unit tests
                 // bat 'mvn test'
             }
-            /* post {
-                always {
-                    publishTestResults testResultsPattern: '**/target/surefire-reports/*.xml'
-                    publishHTML([allowMissing: false,
-                               alwaysLinkToLastBuild: false,
-                               keepAll: true,
-                               reportDir: 'target/site/jacoco',
-                               reportFiles: 'index.html',
-                               reportName: 'Coverage Report'])
-                }
-            } */
         }
         
         stage('Package') {
@@ -105,7 +95,7 @@ pipeline {
             when {
                 anyOf {
                     branch 'develop'
-                    branch 'feature/'
+                    branch pattern: 'feature/.*', comparator: 'REGEXP'
                 }
             }
             steps {
@@ -121,7 +111,7 @@ pipeline {
                 anyOf {
                     branch 'master'
                     branch 'main'
-                    branch 'release/'
+                    branch pattern: 'release/.*', comparator: 'REGEXP'
                 }
             }
             steps {
@@ -136,7 +126,7 @@ pipeline {
             when {
                 anyOf {
                     branch 'develop'
-                    branch 'feature/'
+                    branch pattern: 'feature/.*', comparator: 'REGEXP'
                 }
             }
             steps {
@@ -152,7 +142,7 @@ pipeline {
                 anyOf {
                     branch 'master'
                     branch 'main'
-                    branch 'release/'
+                    branch pattern: 'release/.*', comparator: 'REGEXP'
                 }
             }
             steps {
@@ -239,10 +229,39 @@ def deployToEnvironment(environment, imageTag) {
         echo Deploying Cloud Config...
         kubectl apply -f k8s\\${environment}\\cloud-config\\
         kubectl wait --for=condition=ready pod -l app=cloud-config --timeout=300s
+
+        echo Deploying Api gateway...
+        kubectl apply -f k8s\\${environment}\\api-gateway\\
+        kubectl wait --for=condition=ready pod -l app=api-gateway --timeout=300s
+
+        echo Deploying Favourite service...
+        kubectl apply -f k8s\\${environment}\\favourite-service\\
+        kubectl wait --for=condition=ready pod -l app=favourite-service --timeout=300s
+
+        echo Deploying Order service...
+        kubectl apply -f k8s\\${environment}\\order-service\\
+        kubectl wait --for=condition=ready pod -l app=order-service --timeout=300s
+
+        echo Deploying Payment service...
+        kubectl apply -f k8s\\${environment}\\payment-service\\
+        kubectl wait --for=condition=ready pod -l app=payment-service --timeout=300s
+
+        echo Deploying Product service...
+        kubectl apply -f k8s\\${environment}\\product-service\\
+        kubectl wait --for=condition=ready pod -l app=product-service --timeout=300s
+
+        echo Deploying Proxy client...
+        kubectl apply -f k8s\\${environment}\\proxy-client\\
+        kubectl wait --for=condition=ready pod -l app=proxy-client --timeout=300s
+
+        echo Deploying Shipping service...
+        kubectl apply -f k8s\\${environment}\\shipping-service\\
+        kubectl wait --for=condition=ready pod -l app=shipping-service --timeout=300s
+
+        echo Deploying User service...
+        kubectl apply -f k8s\\${environment}\\user-service\\
+        kubectl wait --for=condition=ready pod -l app=user-service --timeout=300s
         
-        echo Deploying all microservices...
-        kubectl apply -f k8s\\${environment}\\
-        kubectl wait --for=condition=ready pod --all --timeout=600s
         """
     } else {
         // Despliegue básico para desarrollo
@@ -250,31 +269,32 @@ def deployToEnvironment(environment, imageTag) {
         echo Deploying core services to ${environment}...
         kubectl apply -f k8s\\${environment}\\service-discovery\\
         kubectl apply -f k8s\\${environment}\\cloud-config\\
-        kubectl apply -f k8s\\${environment}\\
+        kubectl apply -f k8s\\${environment}\\api-gateway\\
+        kubectl apply -f k8s\\${environment}\\favourite-service\\
+        kubectl apply -f k8s\\${environment}\\order-service\\
+        kubectl apply -f k8s\\${environment}\\payment-service\\
+        kubectl apply -f k8s\\${environment}\\product-service\\
+        kubectl apply -f k8s\\${environment}\\proxy-client\\
+        kubectl apply -f k8s\\${environment}\\shipping-service\\
+        kubectl apply -f k8s\\${environment}\\user-service\\
         """
     }
 }
 
 def runIntegrationTests(environment) {
     echo "Integration tests placeholder for ${environment} environment"
-    /* bat """
-    echo Running integration tests against ${environment} environment...
-    mvn test -Dtest=**/*IntegrationTest -Dspring.profiles.active=${environment}
-    """ */
+    // TODO: Implement integration tests
+    // bat "mvn test -Dtest=**/*IntegrationTest -Dspring.profiles.active=${environment}"
 }
 
 def runE2ETests(environment) {
     echo "E2E tests placeholder for ${environment} environment"
-    /* bat """
-    echo Running end-to-end tests against ${environment} environment...
-    mvn test -Dtest=**/*E2ETest -Dspring.profiles.active=${environment}
-    """ */
+    // TODO: Implement E2E tests
+    // bat "mvn test -Dtest=**/*E2ETest -Dspring.profiles.active=${environment}"
 }
 
 def runPerformanceTests(environment) {
     echo "Performance tests placeholder for ${environment} environment"
-    /* bat """
-    echo Running performance tests against ${environment} environment...
-    mvn test -Dtest=**/*PerformanceTest -Dspring.profiles.active=${environment}
-    """ */
+    // TODO: Implement performance tests
+    // bat "mvn test -Dtest=**/*PerformanceTest -Dspring.profiles.active=${environment}"
 }
