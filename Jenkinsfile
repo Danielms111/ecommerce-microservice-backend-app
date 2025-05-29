@@ -210,75 +210,57 @@ def deployToEnvironment(environment, imageTag) {
     kubectl config current-context
     
     echo Applying common configuration for ${environment}...
-    kubectl apply -f k8s\\common-config-${environment}.yaml
+    kubectl apply -f k8s\\common-config.yaml
     
     echo Deploying services to ${environment}...
     """
-    
-    if (environment == 'stage') {
-        // Despliegue más completo para staging
-        bat """
-        echo Deploying Zipkin...
-        kubectl apply -f k8s\\${environment}\\zipkin\\
-        kubectl wait --for=condition=ready pod -l app=zipkin --timeout=300s
-        
-        echo Deploying Service Discovery...
-        kubectl apply -f k8s\\${environment}\\service-discovery\\
-        kubectl wait --for=condition=ready pod -l app=service-discovery --timeout=300s
-        
-        echo Deploying Cloud Config...
-        kubectl apply -f k8s\\${environment}\\cloud-config\\
-        kubectl wait --for=condition=ready pod -l app=cloud-config --timeout=300s
 
-        echo Deploying Api gateway...
-        kubectl apply -f k8s\\${environment}\\api-gateway\\
-        kubectl wait --for=condition=ready pod -l app=api-gateway --timeout=300s
+    bat """
+    echo Deploying Zipkin...
+    kubectl apply -f k8s\\zipkin\\
+    kubectl wait --for=condition=ready pod -l app=zipkin --timeout=300s
 
-        echo Deploying Favourite service...
-        kubectl apply -f k8s\\${environment}\\favourite-service\\
-        kubectl wait --for=condition=ready pod -l app=favourite-service --timeout=300s
+    echo Deploying Service Discovery...
+    kubectl apply -f k8s\\service-discovery\\
+    kubectl wait --for=condition=ready pod -l app=service-discovery --timeout=300s
 
-        echo Deploying Order service...
-        kubectl apply -f k8s\\${environment}\\order-service\\
-        kubectl wait --for=condition=ready pod -l app=order-service --timeout=300s
+    echo Deploying Cloud Config...
+    kubectl apply -f k8s\\cloud-config\\
+    kubectl wait --for=condition=ready pod -l app=cloud-config --timeout=300s
 
-        echo Deploying Payment service...
-        kubectl apply -f k8s\\${environment}\\payment-service\\
-        kubectl wait --for=condition=ready pod -l app=payment-service --timeout=300s
+    echo Deploying Api gateway...
+    kubectl apply -f k8s\\api-gateway\\
+    kubectl wait --for=condition=ready pod -l app=api-gateway --timeout=300s
 
-        echo Deploying Product service...
-        kubectl apply -f k8s\\${environment}\\product-service\\
-        kubectl wait --for=condition=ready pod -l app=product-service --timeout=300s
+    echo Deploying Favourite service...
+    kubectl apply -f k8s\\favourite-service\\
+    kubectl wait --for=condition=ready pod -l app=favourite-service --timeout=300s
 
-        echo Deploying Proxy client...
-        kubectl apply -f k8s\\${environment}\\proxy-client\\
-        kubectl wait --for=condition=ready pod -l app=proxy-client --timeout=300s
+    echo Deploying Order service...
+    kubectl apply -f k8s\\order-service\\
+    kubectl wait --for=condition=ready pod -l app=order-service --timeout=300s
 
-        echo Deploying Shipping service...
-        kubectl apply -f k8s\\${environment}\\shipping-service\\
-        kubectl wait --for=condition=ready pod -l app=shipping-service --timeout=300s
+    echo Deploying Payment service...
+    kubectl apply -f k8s\\payment-service\\
+    kubectl wait --for=condition=ready pod -l app=payment-service --timeout=300s
 
-        echo Deploying User service...
-        kubectl apply -f k8s\\${environment}\\user-service\\
-        kubectl wait --for=condition=ready pod -l app=user-service --timeout=300s
-        
-        """
-    } else {
-        // Despliegue básico para desarrollo
-        bat """
-        echo Deploying core services to ${environment}...
-        kubectl apply -f k8s\\${environment}\\service-discovery\\
-        kubectl apply -f k8s\\${environment}\\cloud-config\\
-        kubectl apply -f k8s\\${environment}\\api-gateway\\
-        kubectl apply -f k8s\\${environment}\\favourite-service\\
-        kubectl apply -f k8s\\${environment}\\order-service\\
-        kubectl apply -f k8s\\${environment}\\payment-service\\
-        kubectl apply -f k8s\\${environment}\\product-service\\
-        kubectl apply -f k8s\\${environment}\\proxy-client\\
-        kubectl apply -f k8s\\${environment}\\shipping-service\\
-        kubectl apply -f k8s\\${environment}\\user-service\\
-        """
-    }
+    echo Deploying Product service...
+    kubectl apply -f k8s\\product-service\\
+    kubectl wait --for=condition=ready pod -l app=product-service --timeout=300s
+
+    echo Deploying Proxy client...
+    kubectl apply -f k8s\\proxy-client\\
+    kubectl wait --for=condition=ready pod -l app=proxy-client --timeout=300s
+
+    echo Deploying Shipping service...
+    kubectl apply -f k8s\\shipping-service\\
+    kubectl wait --for=condition=ready pod -l app=shipping-service --timeout=300s
+
+    echo Deploying User service...
+    kubectl apply -f k8s\\user-service\\
+    kubectl wait --for=condition=ready pod -l app=user-service --timeout=300s
+
+    """
 }
 
 def runIntegrationTests(environment) {
