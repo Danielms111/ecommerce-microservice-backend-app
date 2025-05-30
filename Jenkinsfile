@@ -313,47 +313,36 @@ def deployToEnvironment(environment, imageTag) {
     bat """
     echo Deploying Zipkin...
     kubectl apply -f k8s\\zipkin\\
-    kubectl wait --for=condition=ready pod -l app=zipkin --timeout=60s
 
     echo Deploying Service Discovery...
     kubectl apply -f k8s\\service-discovery\\
-    kubectl wait --for=condition=ready pod -l app=service-discovery --timeout=60s
 
     echo Deploying Cloud Config...
     kubectl apply -f k8s\\cloud-config\\
-    kubectl wait --for=condition=ready pod -l app=cloud-config --timeout=60s
 
     echo Deploying Api gateway...
     kubectl apply -f k8s\\api-gateway\\
-    kubectl wait --for=condition=ready pod -l app=api-gateway --timeout=60s
 
     echo Deploying Favourite service...
     kubectl apply -f k8s\\favourite-service\\
-    kubectl wait --for=condition=ready pod -l app=favourite-service --timeout=60s
 
     echo Deploying Order service...
     kubectl apply -f k8s\\order-service\\
-    kubectl wait --for=condition=ready pod -l app=order-service --timeout=60s
 
     echo Deploying Payment service...
     kubectl apply -f k8s\\payment-service\\
-    kubectl wait --for=condition=ready pod -l app=payment-service --timeout=60s
 
     echo Deploying Product service...
     kubectl apply -f k8s\\product-service\\
-    kubectl wait --for=condition=ready pod -l app=product-service --timeout=60s
 
     echo Deploying Proxy client...
     kubectl apply -f k8s\\proxy-client\\
-    kubectl wait --for=condition=ready pod -l app=proxy-client --timeout=60s
 
     echo Deploying Shipping service...
     kubectl apply -f k8s\\shipping-service\\
-    kubectl wait --for=condition=ready pod -l app=shipping-service --timeout=60s
 
     echo Deploying User service...
     kubectl apply -f k8s\\user-service\\
-    kubectl wait --for=condition=ready pod -l app=user-service --timeout=60s
 
     """
 }
