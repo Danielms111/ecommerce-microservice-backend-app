@@ -104,7 +104,7 @@ pipeline {
             }
         }
 
-        stage('Deploy to Development') {
+        /*stage('Deploy to Development') {
             when {
                 anyOf {
                     branch 'develop'
@@ -117,7 +117,7 @@ pipeline {
                     deployToEnvironment('dev', IMAGE_TAG)
                 }
             }
-        }
+        }*/
 
         stage('Deploy to Staging') {
             when {
