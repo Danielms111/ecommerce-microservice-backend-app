@@ -1,11 +1,11 @@
 pipeline {
     agent any
-    
+
     tools {
         maven 'MVN'
         jdk 'JDK_11'
     }
-    
+
     environment {
         DOCKERHUB_CREDENTIALS = credentials('password')
         ENVIRONMENT = determinateEnvironment()
@@ -430,20 +430,27 @@ def generateReleaseVersion() {
 def generateReleaseNotes() {
     echo "Generating Release Notes for version ${RELEASE_VERSION}"
 
-    // Crear directorio para release notes
-    bat 'mkdir release-notes 2>nul || echo Directory already exists'
+    script {
+        // Crear directorio para release notes
+        bat 'mkdir release-notes 2>nul || echo Directory already exists'
 
-    // Obtener commits desde el último release
-    def gitCommits = bat(
-        script: 'git log --oneline --since="1 week ago" --grep="feat\\|fix\\|docs\\|style\\|refactor\\|test\\|chore" --pretty=format:"%h|%s|%an|%ad" --date=short',
-        returnStdout: true
-    ).trim()
+        // Obtener commits desde el último release
+        def gitCommits = ""
+        try {
+            gitCommits = bat(
+                script: 'git log --oneline --since="1 week ago" --grep="feat\\|fix\\|docs\\|style\\|refactor\\|test\\|chore" --pretty=format:"%h|%s|%an|%ad" --date=short',
+                returnStdout: true
+            ).trim()
+        } catch (Exception e) {
+            echo "Could not retrieve git commits: ${e.getMessage()}"
+            gitCommits = ""
+        }
 
-    // Obtener información de las pruebas
-    def testResults = getTestResults()
+        // Obtener información de las pruebas
+        def testResults = getTestResults()
 
-    // Generar el contenido de las release notes
-    def releaseNotesContent = """
+        // Generar el contenido de las release notes
+        def releaseNotesContent = """
 # Release Notes - Version ${RELEASE_VERSION}
 
 **Release Date:** ${RELEASE_DATE}
@@ -514,10 +521,11 @@ ${getContributors(gitCommits)}
 *Build URL: ${env.BUILD_URL}*
 """
 
-    // Escribir las release notes
-    writeFile file: "release-notes/release-${RELEASE_VERSION}.md", text: releaseNotesContent
+        // Escribir las release notes
+        writeFile file: "release-notes/release-${RELEASE_VERSION}.md", text: releaseNotesContent
 
-    echo "Release Notes generated successfully"
+        echo "Release Notes generated successfully"
+    }
 }
 
 def extractFeatures(commits) {
@@ -602,7 +610,8 @@ def getTestResults() {
 }
 
 def updateReleaseNotesPostDeploy() {
-    def deploymentInfo = """
+    script {
+        def deploymentInfo = """
 
 ## ✅ Production Deployment Completed
 **Deployment Time:** ${new Date().format('yyyy-MM-dd HH:mm:ss')}
@@ -616,25 +625,36 @@ def updateReleaseNotesPostDeploy() {
 
 """
 
-    // Agregar información de deployment a las release notes
-    def existingNotes = readFile("release-notes/release-${RELEASE_VERSION}.md")
-    writeFile file: "release-notes/release-${RELEASE_VERSION}.md", text: existingNotes + deploymentInfo
+        // Agregar información de deployment a las release notes
+        try {
+            def existingNotes = readFile("release-notes/release-${RELEASE_VERSION}.md")
+            writeFile file: "release-notes/release-${RELEASE_VERSION}.md", text: existingNotes + deploymentInfo
+        } catch (Exception e) {
+            echo "Could not update release notes: ${e.getMessage()}"
+        }
+    }
 }
 
 def publishReleaseNotes() {
-    echo "Publishing Release Notes..."
+    script {
+        echo "Publishing Release Notes..."
 
-    // Publicar en el build como artifact
-    archiveArtifacts artifacts: "release-notes/release-${RELEASE_VERSION}.md", fingerprint: true
+        // Publicar en el build como artifact
+        archiveArtifacts artifacts: "release-notes/release-${RELEASE_VERSION}.md", fingerprint: true
 
-    // Mostrar resumen en consola
-    def releaseNotesContent = readFile("release-notes/release-${RELEASE_VERSION}.md")
-    echo "📋 RELEASE NOTES SUMMARY:"
-    echo "========================"
-    echo releaseNotesContent.take(500) + "..."
-    echo "📁 Full release notes archived as build artifact"
+        // Mostrar resumen en consola
+        try {
+            def releaseNotesContent = readFile("release-notes/release-${RELEASE_VERSION}.md")
+            echo "📋 RELEASE NOTES SUMMARY:"
+            echo "========================"
+            echo releaseNotesContent.take(500) + "..."
+            echo "📁 Full release notes archived as build artifact"
+        } catch (Exception e) {
+            echo "Could not read release notes for summary: ${e.getMessage()}"
+        }
 
-    echo "Release Notes published successfully"
+        echo "Release Notes published successfully"
+    }
 }
 
 def deployToEnvironment(environment, imageTag) {
