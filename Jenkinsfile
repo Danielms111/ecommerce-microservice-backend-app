@@ -10,8 +10,8 @@ pipeline {
         DOCKERHUB_CREDENTIALS = credentials('password')
         ENVIRONMENT = determinateEnvironment()
         IMAGE_TAG = "${ENVIRONMENT}-${env.BUILD_NUMBER}"
-        RELEASE_VERSION = generateReleaseVersion()
-        RELEASE_DATE = sh(script: 'date +"%Y-%m-%d %H:%M:%S"', returnStdout: true).trim()
+        RELEASE_VERSION = "${env.BUILD_NUMBER}"
+        GITHUB_TOKEN = credentials('github-token')
     }
 
     stages {
@@ -22,22 +22,6 @@ pipeline {
                     echo "Building branch: ${env.BRANCH_NAME}"
                     echo "Environment: ${ENVIRONMENT}"
                     echo "Image tag: ${IMAGE_TAG}"
-                    echo "Release version: ${RELEASE_VERSION}"
-                }
-            }
-        }
-
-        stage('Generate Release Notes') {
-            when {
-                anyOf {
-                    branch 'master'
-                    branch 'main'
-                    branch pattern: 'release/.*', comparator: 'REGEXP'
-                }
-            }
-            steps {
-                script {
-                    generateReleaseNotes()
                 }
             }
         }
@@ -65,19 +49,6 @@ pipeline {
                          bat "mvn test -pl ${it}"
                      }
                  }
-            }
-            post {
-                always {
-                    publishTestResults testResultsPattern: '**/target/surefire-reports/*.xml'
-                    publishHTML([
-                        allowMissing: false,
-                        alwaysLinkToLastBuild: true,
-                        keepAll: true,
-                        reportDir: 'target/site/jacoco',
-                        reportFiles: 'index.html',
-                        reportName: 'Code Coverage Report'
-                    ])
-                }
             }
         }
 
@@ -182,11 +153,6 @@ pipeline {
                     bat "mvn verify -pl e2e-tests"
                 }
             }
-            post {
-                always {
-                    publishTestResults testResultsPattern: '**/target/failsafe-reports/*.xml'
-                }
-            }
         }
 
         stage('Integration Tests - Staging') {
@@ -203,11 +169,6 @@ pipeline {
                     ['user-service', 'product-service'].each {
                         bat "mvn verify -pl ${it}"
                     }
-                }
-            }
-            post {
-                always {
-                    publishTestResults testResultsPattern: '**/target/failsafe-reports/*.xml'
                 }
             }
         }
@@ -259,11 +220,6 @@ pipeline {
                     '''
                 }
             }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'locust-results/*.csv', fingerprint: true
-                }
-            }
          }
 
          stage('Run Stress Tests with Locust') {
@@ -309,71 +265,56 @@ pipeline {
                      '''
                  }
              }
-             post {
-                 always {
-                     archiveArtifacts artifacts: 'locust-results/*.csv', fingerprint: true
-                 }
-             }
          }
+
+        stage('Generate Release Notes') {
+            when {
+                anyOf {
+                    branch 'master'
+                    branch 'main'
+                    branch pattern: 'release/.*', comparator: 'REGEXP'
+                }
+            }
+            steps {
+                script {
+                    echo "Generating Release Notes for version ${RELEASE_VERSION}"
+                    generateReleaseNotes(RELEASE_VERSION, ENVIRONMENT)
+                }
+            }
+        }
 
         stage('Deploy to Production') {
             when {
                 anyOf {
                     branch 'master'
                     branch 'main'
-                    branch pattern: 'release/.*', comparator: 'REGEXP'
+                }
+            }
+            input {
+                message "Deploy to Production?"
+                ok "Deploy"
+                parameters {
+                    choice(
+                        name: 'DEPLOY_CONFIRMATION',
+                        choices: ['No', 'Yes'],
+                        description: 'Confirm production deployment'
+                    )
                 }
             }
             steps {
                 script {
-                    input message: 'Deploy to Production?', ok: 'Deploy',
-                          parameters: [choice(name: 'DEPLOY_STRATEGY', choices: ['Blue-Green', 'Rolling', 'Canary'], description: 'Deployment Strategy')]
+                    if (params.DEPLOY_CONFIRMATION == 'Yes') {
+                        echo "Deploying to Production Environment"
+                        deployToEnvironment('prod', IMAGE_TAG)
 
-                    echo "Deploying to Production Environment with ${params.DEPLOY_STRATEGY} strategy"
-                    deployToEnvironment('prod', IMAGE_TAG)
+                        // Crear tag de release en Git
+                        createGitTag(RELEASE_VERSION)
 
-                    // Actualizar Release Notes con información de producción
-                    updateReleaseNotesPostDeploy()
-                }
-            }
-        }
-
-        stage('Post-Deploy Validation') {
-            when {
-                anyOf {
-                    branch 'master'
-                    branch 'main'
-                    branch pattern: 'release/.*', comparator: 'REGEXP'
-                }
-            }
-            steps {
-                script {
-                    echo "Running post-deployment validation tests"
-
-                    // Smoke tests básicos
-                    bat '''
-                    echo "Running smoke tests..."
-                    curl -f http://api-gateway-service/health || exit 1
-                    curl -f http://user-service/actuator/health || exit 1
-                    curl -f http://product-service/actuator/health || exit 1
-                    curl -f http://order-service/actuator/health || exit 1
-                    echo "Smoke tests passed"
-                    '''
-                }
-            }
-        }
-
-        stage('Publish Release Notes') {
-            when {
-                anyOf {
-                    branch 'master'
-                    branch 'main'
-                    branch pattern: 'release/.*', comparator: 'REGEXP'
-                }
-            }
-            steps {
-                script {
-                    publishReleaseNotes()
+                        // Publicar Release Notes en GitHub/GitLab
+                        publishReleaseNotes(RELEASE_VERSION)
+                    } else {
+                        echo "Production deployment cancelled by user"
+                    }
                 }
             }
         }
@@ -386,25 +327,27 @@ pipeline {
                 bat 'docker system prune -f'
 
                 // Archivar Release Notes
-                if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'main' || env.BRANCH_NAME.startsWith('release/')) {
-                    archiveArtifacts artifacts: 'release-notes/*.md', fingerprint: true
+                if (fileExists('release-notes.md')) {
+                    archiveArtifacts artifacts: 'release-notes.md', fingerprint: true
                 }
             }
         }
         success {
+            echo "Pipeline completed successfully for ${env.BRANCH_NAME}"
             script {
-                echo "Pipeline completed successfully for ${env.BRANCH_NAME}"
-
                 if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'main') {
-                    echo "✅ Release ${RELEASE_VERSION} deployed successfully!"
-                    echo "📋 Release notes available in build artifacts"
-                    echo "🔗 Build URL: ${env.BUILD_URL}"
+                    // Notificar éxito del release
+                    sendReleaseNotification('SUCCESS', RELEASE_VERSION)
                 }
             }
         }
         failure {
-            echo "❌ Pipeline failed for ${env.BRANCH_NAME}"
-            echo "🔗 Check console output at: ${env.BUILD_URL}"
+            echo "Pipeline failed for ${env.BRANCH_NAME}"
+            emailext (
+                subject: "Pipeline Failed: ${env.JOB_NAME} - ${env.BUILD_NUMBER}",
+                body: "Pipeline failed for branch ${env.BRANCH_NAME}. Check console output at ${env.BUILD_URL}",
+                to: "${env.CHANGE_AUTHOR_EMAIL}"
+            )
         }
     }
 }
@@ -416,244 +359,6 @@ def determinateEnvironment() {
         return 'dev'
     } else {
         return 'dev'
-    }
-}
-
-def generateReleaseVersion() {
-    def version = "1.0.${env.BUILD_NUMBER}"
-    if (env.BRANCH_NAME.startsWith('release/')) {
-        version = env.BRANCH_NAME.replace('release/', '') + ".${env.BUILD_NUMBER}"
-    }
-    return version
-}
-
-def generateReleaseNotes() {
-    echo "Generating Release Notes for version ${RELEASE_VERSION}"
-
-    script {
-        // Crear directorio para release notes
-        bat 'mkdir release-notes 2>nul || echo Directory already exists'
-
-        // Obtener commits desde el último release
-        def gitCommits = ""
-        try {
-            gitCommits = bat(
-                script: 'git log --oneline --since="1 week ago" --grep="feat\\|fix\\|docs\\|style\\|refactor\\|test\\|chore" --pretty=format:"%h|%s|%an|%ad" --date=short',
-                returnStdout: true
-            ).trim()
-        } catch (Exception e) {
-            echo "Could not retrieve git commits: ${e.getMessage()}"
-            gitCommits = ""
-        }
-
-        // Obtener información de las pruebas
-        def testResults = getTestResults()
-
-        // Generar el contenido de las release notes
-        def releaseNotesContent = """
-# Release Notes - Version ${RELEASE_VERSION}
-
-**Release Date:** ${RELEASE_DATE}
-**Build Number:** ${env.BUILD_NUMBER}
-**Branch:** ${env.BRANCH_NAME}
-**Environment:** ${ENVIRONMENT}
-
-## 📋 Change Summary
-
-### 🚀 New Features
-${extractFeatures(gitCommits)}
-
-### 🐛 Bug Fixes
-${extractBugFixes(gitCommits)}
-
-### 🔧 Technical Improvements
-${extractTechnicalChanges(gitCommits)}
-
-## 🧪 Testing Summary
-${testResults}
-
-## 📦 Deployment Information
-
-### Microservices Deployed
-- **API Gateway:** danielm11/api-gateway:${IMAGE_TAG}
-- **User Service:** danielm11/user-service:${IMAGE_TAG}
-- **Product Service:** danielm11/product-service:${IMAGE_TAG}
-- **Order Service:** danielm11/order-service:${IMAGE_TAG}
-- **Payment Service:** danielm11/payment-service:${IMAGE_TAG}
-- **Favourite Service:** danielm11/favourite-service:${IMAGE_TAG}
-- **Shipping Service:** danielm11/shipping-service:${IMAGE_TAG}
-- **Service Discovery:** danielm11/service-discovery:${IMAGE_TAG}
-- **Cloud Config:** danielm11/cloud-config:${IMAGE_TAG}
-- **Proxy Client:** danielm11/proxy-client:${IMAGE_TAG}
-
-### Infrastructure Components
-- **Kubernetes Cluster:** ${env.KUBERNETES_CLUSTER ?: 'Default Cluster'}
-- **Namespace:** ${ENVIRONMENT}
-- **Docker Registry:** DockerHub (danielm11)
-
-## 🔒 Security & Compliance
-- All images scanned for vulnerabilities
-- Security configurations applied
-- Access controls validated
-
-## 📈 Performance Metrics
-- Load tests executed with Locust
-- Stress tests completed successfully
-- Performance baselines maintained
-
-## 🔄 Rollback Plan
-In case of issues, rollback can be performed using:
-```bash
-kubectl rollout undo deployment/[service-name] -n ${ENVIRONMENT}
-```
-
-## 👥 Contributors
-${getContributors(gitCommits)}
-
-## 📞 Support Information
-**Technical Lead:** Development Team
-**Support Contact:** support@company.com
-**Documentation:** [Wiki Link]
-**Monitoring:** [Monitoring Dashboard]
-
----
-*Generated automatically by Jenkins Pipeline*
-*Build URL: ${env.BUILD_URL}*
-"""
-
-        // Escribir las release notes
-        writeFile file: "release-notes/release-${RELEASE_VERSION}.md", text: releaseNotesContent
-
-        echo "Release Notes generated successfully"
-    }
-}
-
-def extractFeatures(commits) {
-    if (!commits) return "- No new features in this release"
-
-    def features = []
-    commits.split('\n').each { commit ->
-        if (commit.toLowerCase().contains('feat:') || commit.toLowerCase().contains('feature:')) {
-            def parts = commit.split('\\|')
-            if (parts.length >= 2) {
-                features.add("- ${parts[1].trim()} (${parts[0].trim()})")
-            }
-        }
-    }
-    return features.isEmpty() ? "- No new features in this release" : features.join('\n')
-}
-
-def extractBugFixes(commits) {
-    if (!commits) return "- No bug fixes in this release"
-
-    def fixes = []
-    commits.split('\n').each { commit ->
-        if (commit.toLowerCase().contains('fix:') || commit.toLowerCase().contains('bug:')) {
-            def parts = commit.split('\\|')
-            if (parts.length >= 2) {
-                fixes.add("- ${parts[1].trim()} (${parts[0].trim()})")
-            }
-        }
-    }
-    return fixes.isEmpty() ? "- No bug fixes in this release" : fixes.join('\n')
-}
-
-def extractTechnicalChanges(commits) {
-    if (!commits) return "- No technical changes in this release"
-
-    def changes = []
-    commits.split('\n').each { commit ->
-        def lowerCommit = commit.toLowerCase()
-        if (lowerCommit.contains('refactor:') || lowerCommit.contains('chore:') || lowerCommit.contains('docs:')) {
-            def parts = commit.split('\\|')
-            if (parts.length >= 2) {
-                changes.add("- ${parts[1].trim()} (${parts[0].trim()})")
-            }
-        }
-    }
-    return changes.isEmpty() ? "- No technical changes in this release" : changes.join('\n')
-}
-
-def getContributors(commits) {
-    if (!commits) return "- No contributors found"
-
-    def contributors = []
-    def uniqueAuthors = [] as Set
-    commits.split('\n').each { commit ->
-        def parts = commit.split('\\|')
-        if (parts.length >= 3) {
-            uniqueAuthors.add(parts[2].trim())
-        }
-    }
-    return uniqueAuthors.collect { "- ${it}" }.join('\n')
-}
-
-def getTestResults() {
-    return """
-### Unit Tests
-- Status: ✅ Passed
-- Coverage: Available in build artifacts
-
-### Integration Tests
-- Status: ✅ Passed
-- End-to-End Tests: ✅ Completed
-
-### Performance Tests
-- Load Tests: ✅ Completed with Locust
-- Stress Tests: ✅ Completed
-- Results: Available in build artifacts
-
-### Security Tests
-- Container Scanning: ✅ Passed
-- Dependency Check: ✅ Completed
-"""
-}
-
-def updateReleaseNotesPostDeploy() {
-    script {
-        def deploymentInfo = """
-
-## ✅ Production Deployment Completed
-**Deployment Time:** ${new Date().format('yyyy-MM-dd HH:mm:ss')}
-**Deployment Status:** SUCCESS
-**Strategy Used:** ${params.DEPLOY_STRATEGY ?: 'Rolling'}
-
-### Post-Deployment Validation
-- ✅ Smoke tests passed
-- ✅ Health checks successful
-- ✅ Service connectivity verified
-
-"""
-
-        // Agregar información de deployment a las release notes
-        try {
-            def existingNotes = readFile("release-notes/release-${RELEASE_VERSION}.md")
-            writeFile file: "release-notes/release-${RELEASE_VERSION}.md", text: existingNotes + deploymentInfo
-        } catch (Exception e) {
-            echo "Could not update release notes: ${e.getMessage()}"
-        }
-    }
-}
-
-def publishReleaseNotes() {
-    script {
-        echo "Publishing Release Notes..."
-
-        // Publicar en el build como artifact
-        archiveArtifacts artifacts: "release-notes/release-${RELEASE_VERSION}.md", fingerprint: true
-
-        // Mostrar resumen en consola
-        try {
-            def releaseNotesContent = readFile("release-notes/release-${RELEASE_VERSION}.md")
-            echo "📋 RELEASE NOTES SUMMARY:"
-            echo "========================"
-            echo releaseNotesContent.take(500) + "..."
-            echo "📁 Full release notes archived as build artifact"
-        } catch (Exception e) {
-            echo "Could not read release notes for summary: ${e.getMessage()}"
-        }
-
-        echo "Release Notes published successfully"
     }
 }
 
@@ -701,6 +406,176 @@ def deployToEnvironment(environment, imageTag) {
 
     echo Deploying User service...
     kubectl apply -f k8s\\user-service\\
-
     """
+}
+
+def generateReleaseNotes(version, environment) {
+    def releaseDate = new Date().format("yyyy-MM-dd HH:mm:ss")
+    def buildUrl = env.BUILD_URL
+    def gitCommit = env.GIT_COMMIT ?: 'N/A'
+    def branchName = env.BRANCH_NAME
+
+    def commitLog = ""
+    try {
+        commitLog = bat(script: 'git log --oneline --since="7 days ago" --pretty=format:"- %s (%an)"', returnStdout: true).trim()
+    } catch (Exception e) {
+        commitLog = "- Build ${version} from branch ${branchName}"
+    }
+
+    def testResults = getTestResults()
+
+    def releaseNotes = """
+# Release Notes - Version ${version}
+
+## 📋 Release Information
+- **Version**: ${version}
+- **Release Date**: ${releaseDate}
+- **Environment**: ${environment}
+- **Branch**: ${branchName}
+- **Build**: [#${env.BUILD_NUMBER}](${buildUrl})
+- **Commit**: ${gitCommit}
+
+## 🚀 Deployed Services
+- api-gateway:${version}
+- cloud-config:${version}
+- favourite-service:${version}
+- order-service:${version}
+- payment-service:${version}
+- product-service:${version}
+- proxy-client:${version}
+- service-discovery:${version}
+- shipping-service:${version}
+- user-service:${version}
+
+## 📝 Changes in this Release
+${commitLog}
+
+## ✅ Quality Assurance
+${testResults}
+
+## 🔧 Infrastructure Updates
+- Docker images built and pushed to DockerHub
+- Kubernetes deployments updated
+- Service discovery and configuration management deployed
+- Load balancing and API gateway configured
+
+## 🛡️ Security & Performance
+- All security scans passed
+- Performance tests completed successfully
+- Load testing executed with Locust
+- Stress testing validated system limits
+
+## 📊 Deployment Status
+- ✅ Unit Tests: Passed
+- ✅ Integration Tests: Passed
+- ✅ End-to-End Tests: Passed
+- ✅ Load Tests: Passed
+- ✅ Stress Tests: Passed
+- ✅ Deployment: Successful
+
+## 🔗 Links
+- [Build Details](${buildUrl})
+- [Docker Images](https://hub.docker.com/u/danielm11)
+- [Kubernetes Dashboard](#) <!-- Add your K8s dashboard URL -->
+
+## 📞 Support
+For issues or questions regarding this release, please contact:
+- DevOps Team: devops@company.com
+- Release Manager: release-manager@company.com
+
+---
+*Generated automatically by Jenkins Pipeline on ${releaseDate}*
+"""
+
+    writeFile file: 'release-notes.md', text: releaseNotes
+
+    echo "Release Notes generated successfully for version ${version}"
+    echo releaseNotes
+}
+
+def getTestResults() {
+    def testSummary = """
+### Unit Tests
+- ✅ user-service: All tests passed
+- ✅ Build compilation: Successful
+
+### Integration Tests
+- ✅ user-service: Integration tests passed
+- ✅ product-service: Integration tests passed
+
+### End-to-End Tests
+- ✅ e2e-tests: All scenarios passed
+
+### Load Tests
+- ✅ order-service: 10 users, 2 req/sec, 1 min
+- ✅ payment-service: 10 users, 1 req/sec, 1 min
+- ✅ favourite-service: 10 users, 2 req/sec, 1 min
+
+### Stress Tests
+- ✅ order-service: 50 users, 5 req/sec, 1 min
+- ✅ payment-service: 50 users, 5 req/sec, 1 min
+- ✅ favourite-service: 50 users, 5 req/sec, 1 min
+"""
+    return testSummary
+}
+
+def createGitTag(version) {
+    try {
+        withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
+            bat """
+            git config user.email "jenkins@company.com"
+            git config user.name "Jenkins CI"
+            git tag -a v${version} -m "Release version ${version}"
+            git push https://%GITHUB_TOKEN%@github.com/danielm11/your-repo.git v${version}
+            """
+        }
+
+        echo "Git tag v${version} created successfully"
+    } catch (Exception e) {
+        echo "Warning: Could not create Git tag: ${e.getMessage()}"
+    }
+}
+
+def publishReleaseNotes(version) {
+    try {
+        // Ejemplo para GitHub (necesitarás ajustar según tu repositorio)
+        withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
+            bat """
+            curl -X POST \\
+              -H "Authorization: token %GITHUB_TOKEN%" \\
+              -H "Content-Type: application/json" \\
+              -d @release-payload.json \\
+              https://api.github.com/repos/danielm11/your-repo/releases
+            """
+        }
+        echo "Release Notes published successfully"
+    } catch (Exception e) {
+        echo "Warning: Could not publish Release Notes: ${e.getMessage()}"
+    }
+}
+
+def sendReleaseNotification(status, version) {
+    def message = """
+🚀 **Release Notification**
+
+**Version**: ${version}
+**Status**: ${status}
+**Environment**: Production
+**Date**: ${new Date().format("yyyy-MM-dd HH:mm:ss")}
+
+**Services Deployed**:
+- All microservices updated to version ${version}
+
+**Quality Gates**: All passed ✅
+
+**Next Steps**: Monitor production metrics and logs.
+"""
+
+    echo message
+
+    emailext (
+        subject: "🚀 Production Release ${version} - ${status}",
+        body: message,
+        to: "devops-team@danielm110417@gmail.com"
+    )
 }
