@@ -480,8 +480,8 @@ ${testResults}
 
 ## 📞 Support
 For issues or questions regarding this release, please contact:
-- DevOps Team: devops@company.com
-- Release Manager: release-manager@company.com
+- DevOps Team: danielm110417@gmail.com
+- Release Manager: danielm110417@gmail.com
 
 ---
 *Generated automatically by Jenkins Pipeline on ${releaseDate}*
@@ -538,14 +538,13 @@ def createGitTag(version) {
 
 def publishReleaseNotes(version) {
     try {
-        // Ejemplo para GitHub (necesitarás ajustar según tu repositorio)
         withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
             bat """
             curl -X POST \\
               -H "Authorization: token %GITHUB_TOKEN%" \\
               -H "Content-Type: application/json" \\
               -d @release-payload.json \\
-              https://api.github.com/repos/danielm11/your-repo/releases
+              https://github.com/Danielms111/ecommerce-microservice-backend-app.git
             """
         }
         echo "Release Notes published successfully"
@@ -576,6 +575,6 @@ def sendReleaseNotification(status, version) {
     emailext (
         subject: "🚀 Production Release ${version} - ${status}",
         body: message,
-        to: "devops-team@danielm110417@gmail.com"
+        to: "danielm110417@gmail.com"
     )
 }
