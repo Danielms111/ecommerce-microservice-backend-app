@@ -496,9 +496,9 @@ ${testResults}
 
 ## 🔄 Rollback Plan
 In case of issues, rollback can be performed using:
-\`\`\`bash
+```bash
 kubectl rollout undo deployment/[service-name] -n ${ENVIRONMENT}
-\`\`\`
+```
 
 ## 👥 Contributors
 ${getContributors(gitCommits)}
