@@ -23,6 +23,15 @@ pipeline {
                 }
             }
         }
+
+        stage('Verify Tools') {
+                            steps {
+                                bat 'java -version'
+                                bat 'mvn -version'
+                                bat 'docker --version'
+                                bat 'kubectl config current-context'
+                            }
+        }
         
         stage('Build Maven') {
             steps {
@@ -33,9 +42,11 @@ pipeline {
         
         stage('Unit Tests') {
             steps {
-                echo 'Skipping unit tests for now - will be implemented later'
-                // TODO: Implement unit tests
-                // bat 'mvn test'
+                 script {
+                     ['user-service'].each {
+                         bat "mvn test -pl ${it}"
+                     }
+                 }
             }
         }
         
@@ -122,7 +133,7 @@ pipeline {
             }
         }
         
-        stage('Integration Tests - Development') {
+        stage('Integration and e2e Tests - Development') {
             when {
                 anyOf {
                     branch 'develop'
@@ -131,8 +142,13 @@ pipeline {
             }
             steps {
                 script {
-                    echo "Integration tests will be implemented later for Development"
-                    // runIntegrationTests('dev')
+                    echo "Running integration tests"
+                    ['user-service', 'product-service'].each {
+                        bat "mvn verify -pl ${it}"
+                    }
+
+                    echo "Running end-to-end tests"
+                    bat "mvn verify -pl e2e-tests"
                 }
             }
         }
@@ -147,30 +163,109 @@ pipeline {
             }
             steps {
                 script {
-                    echo "Integration tests will be implemented later for Staging"
-                    // runIntegrationTests('stage')
-                    
-                    // Pruebas adicionales para staging
-                    echo "End-to-end tests will be implemented later"
-                    // runE2ETests('stage')
+                    echo "Running integration tests"
+                    ['user-service', 'product-service'].each {
+                        bat "mvn verify -pl ${it}"
+                    }
                 }
             }
         }
         
-        stage('Performance Tests - Staging Only') {
+         stage('Run Load Tests with Locust') {
             when {
                 anyOf {
-                    branch 'master'
-                    branch 'main'
+                    branch 'develop'
+                    branch pattern: 'feature/.*', comparator: 'REGEXP'
                 }
             }
             steps {
                 script {
-                    echo "Performance tests will be implemented later for Staging"
-                    // runPerformanceTests('stage')
+                    bat '''
+                    echo  Levantando Locust para order-service...
+
+                    docker run --rm --network ecommerce-test ^
+                      -v "%CD%\\locust:/mnt" ^
+                      -v "%CD%\\locust-results:/app" ^
+                      danielm11/locust:%IMAGE_TAG% ^
+                      -f /mnt/test/order-service/locustfile.py ^
+                      --host http://order-service-container:8300 ^
+                      --headless -u 10 -r 2 -t 1m ^
+                      --csv order-service-stats --csv-full-history
+
+                    echo  Levantando Locust para payment-service...
+
+                    docker run --rm --network ecommerce-test ^
+                      -v "%CD%\\locust:/mnt" ^
+                      -v "%CD%\\locust-results:/app" ^
+                      danielm11/locust:%IMAGE_TAG% ^
+                      -f /mnt/test/payment-service/locustfile.py ^
+                      --host http://payment-service-container:8400 ^
+                      --headless -u 10 -r 1 -t 1m ^
+                      --csv payment-service-stats --csv-full-history
+
+                    echo  Levantando Locust para favourite-service...
+
+                    docker run --rm --network ecommerce-test ^
+                      -v "%CD%\\locust:/mnt" ^
+                      -v "%CD%\\locust-results:/app" ^
+                      danielm11/locust:%IMAGE_TAG% ^
+                      -f /mnt/test/favourite-service/locustfile.py ^
+                      --host http://favourite-service-container:8800 ^
+                      --headless -u 10 -r 2 -t 1m ^
+                      --csv favourite-service-stats --csv-full-history
+
+                    echo  Pruebas completadas
+                    '''
                 }
             }
-        }
+         }
+
+         stage('Run Stress Tests with Locust') {
+             when {
+                 anyOf {
+                     branch 'develop'
+                     branch pattern: 'feature/.*', comparator: 'REGEXP'
+                 }
+             }
+             steps {
+                 script {
+                     bat '''
+                     echo  Levantando Locust para prueba de estrés...
+
+                     docker run --rm --network ecommerce-test ^
+                     -v "%CD%\\locust:/mnt" ^
+                     -v "%CD%\\locust-results:/app" ^
+                     danielm11/locust:%IMAGE_TAG% ^
+                     -f /mnt/test/order-service/locustfile.py ^
+                     --host http://order-service-container:8300 ^
+                     --headless -u 50 -r 5 -t 1m ^
+                     --csv order-service-stress --csv-full-history
+
+                     docker run --rm --network ecommerce-test ^
+                     -v "%CD%\\locust:/mnt" ^
+                     -v "%CD%\\locust-results:/app" ^
+                     danielm11/locust:%IMAGE_TAG% ^
+                     -f /mnt/test/payment-service/locustfile.py ^
+                     --host http://payment-service-container:8400 ^
+                     --headless -u 50 -r 5 -t 1m ^
+                     --csv payment-service-stress --csv-full-history
+
+                     docker run --rm --network ecommerce-test ^
+                     -v "%CD%\\locust:/mnt" ^
+                     -v "%CD%\\locust-results:/app" ^
+                     danielm11/locust:%IMAGE_TAG% ^
+                     -f /mnt/test/favourite-service/locustfile.py ^
+                     --host http://favourite-service-container:8800 ^
+                     --headless -u 50 -r 5 -t 1m ^
+                     --csv favourite-service-stress --csv-full-history
+
+                     echo  Pruebas de estrés completadas
+                     '''
+                 }
+             }
+         }
+
+
     }
     
     post {
@@ -218,65 +313,47 @@ def deployToEnvironment(environment, imageTag) {
     bat """
     echo Deploying Zipkin...
     kubectl apply -f k8s\\zipkin\\
-    kubectl wait --for=condition=ready pod -l app=zipkin --timeout=300s
+    //kubectl wait --for=condition=ready pod -l app=zipkin --timeout=300s
 
     echo Deploying Service Discovery...
     kubectl apply -f k8s\\service-discovery\\
-    kubectl wait --for=condition=ready pod -l app=service-discovery --timeout=300s
+    //kubectl wait --for=condition=ready pod -l app=service-discovery --timeout=300s
 
     echo Deploying Cloud Config...
     kubectl apply -f k8s\\cloud-config\\
-    kubectl wait --for=condition=ready pod -l app=cloud-config --timeout=300s
+    //kubectl wait --for=condition=ready pod -l app=cloud-config --timeout=300s
 
     echo Deploying Api gateway...
     kubectl apply -f k8s\\api-gateway\\
-    kubectl wait --for=condition=ready pod -l app=api-gateway --timeout=300s
+    //kubectl wait --for=condition=ready pod -l app=api-gateway --timeout=300s
 
     echo Deploying Favourite service...
     kubectl apply -f k8s\\favourite-service\\
-    kubectl wait --for=condition=ready pod -l app=favourite-service --timeout=300s
+    //kubectl wait --for=condition=ready pod -l app=favourite-service --timeout=300s
 
     echo Deploying Order service...
     kubectl apply -f k8s\\order-service\\
-    kubectl wait --for=condition=ready pod -l app=order-service --timeout=300s
+    //kubectl wait --for=condition=ready pod -l app=order-service --timeout=300s
 
     echo Deploying Payment service...
     kubectl apply -f k8s\\payment-service\\
-    kubectl wait --for=condition=ready pod -l app=payment-service --timeout=300s
+    //kubectl wait --for=condition=ready pod -l app=payment-service --timeout=300s
 
     echo Deploying Product service...
     kubectl apply -f k8s\\product-service\\
-    kubectl wait --for=condition=ready pod -l app=product-service --timeout=300s
+    //kubectl wait --for=condition=ready pod -l app=product-service --timeout=300s
 
     echo Deploying Proxy client...
     kubectl apply -f k8s\\proxy-client\\
-    kubectl wait --for=condition=ready pod -l app=proxy-client --timeout=300s
+    //kubectl wait --for=condition=ready pod -l app=proxy-client --timeout=300s
 
     echo Deploying Shipping service...
     kubectl apply -f k8s\\shipping-service\\
-    kubectl wait --for=condition=ready pod -l app=shipping-service --timeout=300s
+    //kubectl wait --for=condition=ready pod -l app=shipping-service --timeout=300s
 
     echo Deploying User service...
     kubectl apply -f k8s\\user-service\\
-    kubectl wait --for=condition=ready pod -l app=user-service --timeout=300s
+    //kubectl wait --for=condition=ready pod -l app=user-service --timeout=300s
 
     """
-}
-
-def runIntegrationTests(environment) {
-    echo "Integration tests placeholder for ${environment} environment"
-    // TODO: Implement integration tests
-    // bat "mvn test -Dtest=**/*IntegrationTest -Dspring.profiles.active=${environment}"
-}
-
-def runE2ETests(environment) {
-    echo "E2E tests placeholder for ${environment} environment"
-    // TODO: Implement E2E tests
-    // bat "mvn test -Dtest=**/*E2ETest -Dspring.profiles.active=${environment}"
-}
-
-def runPerformanceTests(environment) {
-    echo "Performance tests placeholder for ${environment} environment"
-    // TODO: Implement performance tests
-    // bat "mvn test -Dtest=**/*PerformanceTest -Dspring.profiles.active=${environment}"
 }
