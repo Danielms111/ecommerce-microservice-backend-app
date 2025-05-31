@@ -148,21 +148,19 @@ pipeline {
                         bat "mvn verify -pl ${it}"
                     }
                 }
-                junit '**/target/failsafe-reports/TEST-*.xml'
              }
         }
 
         stage('e2e Tests - Development') {
-                    when {
-                        anyOf {
-                            branch 'develop'
-                            branch pattern: 'feature/.*', comparator: 'REGEXP'
-                        }
-                    }
-                    steps {
-                            bat "mvn verify -pl e2e-tests"
-                            junit 'e2e-tests/target/failsafe-reports/*.xml'
-                    }
+            when {
+                anyOf {
+                    branch 'develop'
+                    branch pattern: 'feature/.*', comparator: 'REGEXP'
+                }
+            }
+            steps {
+                    bat "mvn verify -pl e2e-tests"
+            }
                 }
 
         stage('Integration Tests - Staging') {
