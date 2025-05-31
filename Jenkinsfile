@@ -79,7 +79,7 @@ pipeline {
             }
         }
 
-        stage('Push Images to DockerHub') {
+        /*stage('Push Images to DockerHub') {
             steps {
                 script {
                     def services = [
@@ -102,7 +102,7 @@ pipeline {
                     }
                 }
             }
-        }
+        }*/
 
         /*stage('Deploy to Development') {
             when {
@@ -135,7 +135,7 @@ pipeline {
             }
         }
 
-        stage('Integration and e2e Tests - Development') {
+        stage('Integration - Development') {
             when {
                 anyOf {
                     branch 'develop'
@@ -144,16 +144,26 @@ pipeline {
             }
             steps {
                 script {
-                    echo "Running integration tests"
                     ['user-service', 'product-service'].each {
                         bat "mvn verify -pl ${it}"
                     }
-
-                    echo "Running end-to-end tests"
-                    bat "mvn verify -pl e2e-tests"
                 }
-            }
+                junit '**/target/failsafe-reports/TEST-*.xml'
+             }
         }
+
+        stage('e2e Tests - Development') {
+                    when {
+                        anyOf {
+                            branch 'develop'
+                            branch pattern: 'feature/.*', comparator: 'REGEXP'
+                        }
+                    }
+                    steps {
+                            bat "mvn verify -pl e2e-tests"
+                            junit 'e2e-tests/target/failsafe-reports/*.xml'
+                    }
+                }
 
         stage('Integration Tests - Staging') {
             when {
