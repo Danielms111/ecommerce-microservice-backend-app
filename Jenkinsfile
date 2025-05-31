@@ -64,7 +64,7 @@ pipeline {
                     def services = [
                         'api-gateway', 'cloud-config', 'favourite-service', 'order-service',
                         'payment-service', 'product-service', 'proxy-client',
-                        'service-discovery', 'shipping-service', 'user-service'
+                        'service-discovery', 'shipping-service', 'user-service', 'locust'
                     ]
 
                     for (service in services) {
