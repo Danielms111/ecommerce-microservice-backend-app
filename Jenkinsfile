@@ -89,7 +89,8 @@ pipeline {
         stage('Levantar contenedores para pruebas') {
             when {
                 anyOf {
-                    branch 'stage'
+                    branch 'develop'
+                    branch pattern: 'feature/.*', comparator: 'REGEXP'
                 }
             }
             steps {
