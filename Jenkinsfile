@@ -144,7 +144,7 @@ pipeline {
             }
             steps {
                 script {
-                    ['user-service', 'product-service'].each {
+                    ['user-service', 'payment-service'].each {
                         bat "mvn verify -pl ${it}"
                     }
                 }
