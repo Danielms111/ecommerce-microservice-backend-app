@@ -12,6 +12,7 @@ pipeline {
         IMAGE_TAG = "${ENVIRONMENT}-${env.BUILD_NUMBER}"
         RELEASE_VERSION = "${env.BUILD_NUMBER}"
         GITHUB_TOKEN = credentials('github-token')
+        K8S_NAMESPACE = 'ecommerce'
     }
 
     stages {
@@ -23,6 +24,12 @@ pipeline {
                     echo "Environment: ${ENVIRONMENT}"
                     echo "Image tag: ${IMAGE_TAG}"
                 }
+            }
+        }
+
+        stage('Ensure Namespace') {
+            steps {
+                bat "kubectl get namespace ${K8S_NAMESPACE} || kubectl create namespace ${K8S_NAMESPACE}"
             }
         }
 
