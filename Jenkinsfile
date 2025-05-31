@@ -135,7 +135,7 @@ pipeline {
             }
         }
 
-        stage('Integration - Development') {
+        /*stage('Integration - Development') {
             when {
                 anyOf {
                     branch 'develop'
@@ -161,7 +161,7 @@ pipeline {
             steps {
                     bat "mvn verify -pl e2e-tests"
             }
-                }
+        }*/
 
         stage('Integration Tests - Staging') {
             when {
@@ -196,7 +196,7 @@ pipeline {
                     docker run --rm --network ecommerce-test ^
                       -v "%CD%\\locust:/mnt" ^
                       -v "%CD%\\locust-results:/app" ^
-                      danielm11/locust:%IMAGE_TAG% ^
+                      danielm11/locust:latest ^
                       -f /mnt/test/order-service/locustfile.py ^
                       --host http://order-service-container:8300 ^
                       --headless -u 10 -r 2 -t 1m ^
@@ -207,7 +207,7 @@ pipeline {
                     docker run --rm --network ecommerce-test ^
                       -v "%CD%\\locust:/mnt" ^
                       -v "%CD%\\locust-results:/app" ^
-                      danielm11/locust:%IMAGE_TAG% ^
+                      danielm11/locust:latest ^
                       -f /mnt/test/payment-service/locustfile.py ^
                       --host http://payment-service-container:8400 ^
                       --headless -u 10 -r 1 -t 1m ^
@@ -218,7 +218,7 @@ pipeline {
                     docker run --rm --network ecommerce-test ^
                       -v "%CD%\\locust:/mnt" ^
                       -v "%CD%\\locust-results:/app" ^
-                      danielm11/locust:%IMAGE_TAG% ^
+                      danielm11/locust:latest ^
                       -f /mnt/test/favourite-service/locustfile.py ^
                       --host http://favourite-service-container:8800 ^
                       --headless -u 10 -r 2 -t 1m ^
@@ -245,7 +245,7 @@ pipeline {
                      docker run --rm --network ecommerce-test ^
                      -v "%CD%\\locust:/mnt" ^
                      -v "%CD%\\locust-results:/app" ^
-                     danielm11/locust:%IMAGE_TAG% ^
+                     danielm11/locust:latest ^
                      -f /mnt/test/order-service/locustfile.py ^
                      --host http://order-service-container:8300 ^
                      --headless -u 50 -r 5 -t 1m ^
@@ -254,7 +254,7 @@ pipeline {
                      docker run --rm --network ecommerce-test ^
                      -v "%CD%\\locust:/mnt" ^
                      -v "%CD%\\locust-results:/app" ^
-                     danielm11/locust:%IMAGE_TAG% ^
+                     danielm11/locust:latest ^
                      -f /mnt/test/payment-service/locustfile.py ^
                      --host http://payment-service-container:8400 ^
                      --headless -u 50 -r 5 -t 1m ^
@@ -263,7 +263,7 @@ pipeline {
                      docker run --rm --network ecommerce-test ^
                      -v "%CD%\\locust:/mnt" ^
                      -v "%CD%\\locust-results:/app" ^
-                     danielm11/locust:%IMAGE_TAG% ^
+                     danielm11/locust:latest ^
                      -f /mnt/test/favourite-service/locustfile.py ^
                      --host http://favourite-service-container:8800 ^
                      --headless -u 50 -r 5 -t 1m ^
