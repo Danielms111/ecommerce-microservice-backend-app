@@ -68,10 +68,10 @@ pipeline {
                     ]
 
                     for (service in services) {
-                        bat "docker build -t danielm11/${service}:${IMAGE_TAG} .\\${service}"
+                        bat "docker build -t danielm11/${service}:latest .\\${service}"
 
                         // También crear tag latest para la rama master/main
-                        if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'main') {
+                        if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'develop') {
                             bat "docker tag danielm11/${service}:${IMAGE_TAG} danielm11/${service}:latest"
                         }
                     }
