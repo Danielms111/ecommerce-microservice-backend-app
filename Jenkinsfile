@@ -86,6 +86,77 @@ pipeline {
             }
         }
 
+        stage('Conteniners for testing') {
+            when {
+                anyOf {
+                    branch 'stage'
+                }
+            }
+            steps {
+                script {
+                    bat '''
+
+                    docker network create ecommerce-test || true
+
+                    echo Levantando ZIPKIN...
+                    docker run -d --name zipkin-container --network ecommerce-test -p 9411:9411 openzipkin/zipkin
+
+                    echo Levantando EUREKA...
+                    docker run -d --name service-discovery-container --network ecommerce-test -p 8761:8761 ^
+                        -e SPRING_PROFILES_ACTIVE=dev ^
+                        -e SPRING_ZIPKIN_BASE_URL=http://zipkin-container:9411 ^
+                        darwinl06/service-discovery:%IMAGE_TAG%
+
+                    call :waitForService http://localhost:8761/actuator/health
+
+                    echo Levantando CLOUD-CONFIG...
+                    docker run -d --name cloud-config-container --network ecommerce-test -p 9296:9296 ^
+                        -e SPRING_PROFILES_ACTIVE=dev ^
+                        -e SPRING_ZIPKIN_BASE_URL=http://zipkin-container:9411 ^
+                        -e EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-discovery-container:8761/eureka/ ^
+                        -e EUREKA_INSTANCE=cloud-config-container ^
+                        darwinl06/cloud-config:%IMAGE_TAG%
+
+                    call :waitForService http://localhost:9296/actuator/health
+
+                    call :runService order-service 8300
+                    call :runService payment-service 8400
+                    call :runService product-service 8500
+                    call :runService shipping-service 8600
+                    call :runService user-service 8700
+                    call :runService favourite-service 8800
+
+                    echo ✅ Todos los contenedores están arriba y saludables.
+                    exit /b 0
+
+                    :runService
+                    set "NAME=%~1"
+                    set "PORT=%~2"
+                    echo Levantando %NAME%...
+                    docker run -d --name %NAME%-container --network ecommerce-test -p %PORT%:%PORT% ^
+                        -e SPRING_PROFILES_ACTIVE=dev ^
+                        -e SPRING_ZIPKIN_BASE_URL=http://zipkin-container:9411 ^
+                        -e SPRING_CONFIG_IMPORT=optional:configserver:http://cloud-config-container:9296 ^
+                        -e EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://service-discovery-container:8761/eureka ^
+                        -e EUREKA_INSTANCE=%NAME%-container ^
+                        darwinl06/%NAME%:%IMAGE_TAG%
+                    call :waitForService http://localhost:%PORT%/%NAME%/actuator/health
+                    exit /b 0
+
+                    :waitForService
+                    set "URL=%~1"
+                    echo ⏳ Esperando a que %URL% esté disponible...
+                    :wait_loop
+                    for /f "delims=" %%i in ('curl -s %URL% ^| jq -r ".status"') do (
+                        if "%%i"=="UP" goto :eof
+                    )
+                    timeout /t 5 /nobreak
+                    goto wait_loop
+                    '''
+                }
+            }
+        }
+
         /*stage('Push Images to DockerHub') {
             steps {
                 script {
@@ -186,7 +257,7 @@ pipeline {
                     }
                 }
             }
-        }
+
 
          stage('Run Load Tests with Locust') {
             when {
