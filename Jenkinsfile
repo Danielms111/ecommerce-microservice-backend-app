@@ -13,6 +13,7 @@ pipeline {
         RELEASE_VERSION = "${env.BUILD_NUMBER}"
         GITHUB_TOKEN = credentials('github-token')
         K8S_NAMESPACE = 'ecommerce'
+        SERVICES = 'service-discovery cloud-config api-gateway product-service user-service order-service payment-service shipping-service favourite-service proxy-client locust'
     }
 
     stages {
@@ -169,12 +170,7 @@ pipeline {
                             """
 
                     script {
-                        def services = [
-                            'api-gateway', 'cloud-config', 'favourite-service', 'order-service',
-                            'payment-service', 'product-service', 'proxy-client',
-                            'service-discovery', 'shipping-service', 'user-service'
-                        ]
-                        for (service in services) {
+                        SERVICES.split().each { service ->
                             bat "docker push danielm11/${service}:latest"
                         }
                     }
