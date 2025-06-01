@@ -12,6 +12,7 @@ pipeline {
         IMAGE_TAG = "${ENVIRONMENT}-${env.BUILD_NUMBER}"
         RELEASE_VERSION = "${env.BUILD_NUMBER}"
         GITHUB_TOKEN = credentials('github-token')
+        K8S_NAMESPACE = 'ecommerce'
     }
 
     stages {
@@ -23,6 +24,12 @@ pipeline {
                     echo "Environment: ${ENVIRONMENT}"
                     echo "Image tag: ${IMAGE_TAG}"
                 }
+            }
+        }
+
+        stage('Ensure Namespace') {
+            steps {
+                bat "kubectl get namespace ${K8S_NAMESPACE} || kubectl create namespace ${K8S_NAMESPACE}"
             }
         }
 
@@ -64,17 +71,90 @@ pipeline {
                     def services = [
                         'api-gateway', 'cloud-config', 'favourite-service', 'order-service',
                         'payment-service', 'product-service', 'proxy-client',
-                        'service-discovery', 'shipping-service', 'user-service'
+                        'service-discovery', 'shipping-service', 'user-service', 'locust'
                     ]
 
                     for (service in services) {
-                        bat "docker build -t danielm11/${service}:${IMAGE_TAG} .\\${service}"
+                        bat "docker build -t danielm11/${service}:latest .\\${service}"
 
                         // También crear tag latest para la rama master/main
-                        if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'main') {
-                            bat "docker tag danielm11/${service}:${IMAGE_TAG} danielm11/${service}:latest"
+                        if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'develop') {
+                            bat "docker tag danielm11/${service}:latest danielm11/${service}:latest"
                         }
                     }
+                }
+            }
+        }
+
+        stage('Levantar contenedores para pruebas') {
+            when {
+                anyOf {
+                    branch 'develop'
+                    branch pattern: 'feature/.*', comparator: 'REGEXP'
+                }
+            }
+            steps {
+                script {
+                    bat '''
+
+                    docker network create ecommerce-test || true
+
+                    echo 🚀 Levantando ZIPKIN...
+                    docker run -d --name zipkin-container --network ecommerce-test -p 9411:9411 openzipkin/zipkin
+
+                    echo 🚀 Levantando EUREKA...
+                    docker run -d --name service-discovery-container --network ecommerce-test -p 8761:8761 ^
+                        -e SPRING_PROFILES_ACTIVE=dev ^
+                        -e SPRING_ZIPKIN_BASE_URL=http://zipkin-container:9411 ^
+                        danielm11/service-discovery:latest
+
+                    call :waitForService http://localhost:8761/actuator/health
+
+                    echo 🚀 Levantando CLOUD-CONFIG...
+                    docker run -d --name cloud-config-container --network ecommerce-test -p 9296:9296 ^
+                        -e SPRING_PROFILES_ACTIVE=dev ^
+                        -e SPRING_ZIPKIN_BASE_URL=http://zipkin-container:9411 ^
+                        -e EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-discovery-container:8761/eureka/ ^
+                        -e EUREKA_INSTANCE=cloud-config-container ^
+                        danielm11/cloud-config:latest
+
+                    call :waitForService http://localhost:9296/actuator/health
+
+                    call :runService order-service 8300
+                    call :runService payment-service 8400
+                    call :runService product-service 8500
+                    call :runService shipping-service 8600
+                    call :runService user-service 8700
+                    call :runService favourite-service 8800
+
+                    echo ✅ Todos los contenedores están arriba y saludables.
+                    exit /b 0
+
+                    :runService
+                    set "NAME=%~1"
+                    set "PORT=%~2"
+                    echo 🚀 Levantando %NAME%...
+                    docker run -d --name %NAME%-container --network ecommerce-test -p %PORT%:%PORT% ^
+                        -e SPRING_PROFILES_ACTIVE=dev ^
+                        -e SPRING_ZIPKIN_BASE_URL=http://zipkin-container:9411 ^
+                        -e SPRING_CONFIG_IMPORT=optional:configserver:http://cloud-config-container:9296 ^
+                        -e EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://service-discovery-container:8761/eureka ^
+                        -e EUREKA_INSTANCE=%NAME%-container ^
+                        danielm11/%NAME%:latest
+                    call :waitForService http://localhost:%PORT%/%NAME%/actuator/health
+                    exit /b 0
+
+                    :waitForService
+                    set "URL=%~1"
+                    echo ⏳ Esperando a que %URL% esté disponible...
+                    :wait_loop
+                    for /f "delims=" %%i in ('curl -s %URL%') do (
+                        echo %%i | findstr /i "UP" >nul
+                        if not errorlevel 1 goto :eof
+                    )
+                    ping -n 6 127.0.0.1 > nul
+                    goto wait_loop
+                    '''
                 }
             }
         }
@@ -104,7 +184,7 @@ pipeline {
             }
         }
 
-        /*stage('Deploy to Development') {
+        stage('Deploy to Development') {
             when {
                 anyOf {
                     branch 'develop'
@@ -117,7 +197,7 @@ pipeline {
                     deployToEnvironment('dev', IMAGE_TAG)
                 }
             }
-        }*/
+        }
 
         stage('Deploy to Staging') {
             when {
@@ -135,7 +215,7 @@ pipeline {
             }
         }
 
-        stage('Integration and e2e Tests - Development') {
+        stage('Integration - Development') {
             when {
                 anyOf {
                     branch 'develop'
@@ -144,14 +224,22 @@ pipeline {
             }
             steps {
                 script {
-                    echo "Running integration tests"
-                    ['user-service', 'product-service'].each {
+                    ['user-service', 'payment-service'].each {
                         bat "mvn verify -pl ${it}"
                     }
-
-                    echo "Running end-to-end tests"
-                    bat "mvn verify -pl e2e-tests"
                 }
+             }
+        }
+
+        stage('e2e Tests - Development') {
+            when {
+                anyOf {
+                    branch 'develop'
+                    branch pattern: 'feature/.*', comparator: 'REGEXP'
+                }
+            }
+            steps {
+                    bat "mvn verify -pl e2e-tests"
             }
         }
 
@@ -188,7 +276,7 @@ pipeline {
                     docker run --rm --network ecommerce-test ^
                       -v "%CD%\\locust:/mnt" ^
                       -v "%CD%\\locust-results:/app" ^
-                      danielm11/locust:%IMAGE_TAG% ^
+                      danielm11/locust:latest ^
                       -f /mnt/test/order-service/locustfile.py ^
                       --host http://order-service-container:8300 ^
                       --headless -u 10 -r 2 -t 1m ^
@@ -199,7 +287,7 @@ pipeline {
                     docker run --rm --network ecommerce-test ^
                       -v "%CD%\\locust:/mnt" ^
                       -v "%CD%\\locust-results:/app" ^
-                      danielm11/locust:%IMAGE_TAG% ^
+                      danielm11/locust:latest ^
                       -f /mnt/test/payment-service/locustfile.py ^
                       --host http://payment-service-container:8400 ^
                       --headless -u 10 -r 1 -t 1m ^
@@ -210,7 +298,7 @@ pipeline {
                     docker run --rm --network ecommerce-test ^
                       -v "%CD%\\locust:/mnt" ^
                       -v "%CD%\\locust-results:/app" ^
-                      danielm11/locust:%IMAGE_TAG% ^
+                      danielm11/locust:latest ^
                       -f /mnt/test/favourite-service/locustfile.py ^
                       --host http://favourite-service-container:8800 ^
                       --headless -u 10 -r 2 -t 1m ^
@@ -237,7 +325,7 @@ pipeline {
                      docker run --rm --network ecommerce-test ^
                      -v "%CD%\\locust:/mnt" ^
                      -v "%CD%\\locust-results:/app" ^
-                     danielm11/locust:%IMAGE_TAG% ^
+                     danielm11/locust:latest ^
                      -f /mnt/test/order-service/locustfile.py ^
                      --host http://order-service-container:8300 ^
                      --headless -u 50 -r 5 -t 1m ^
@@ -246,7 +334,7 @@ pipeline {
                      docker run --rm --network ecommerce-test ^
                      -v "%CD%\\locust:/mnt" ^
                      -v "%CD%\\locust-results:/app" ^
-                     danielm11/locust:%IMAGE_TAG% ^
+                     danielm11/locust:latest ^
                      -f /mnt/test/payment-service/locustfile.py ^
                      --host http://payment-service-container:8400 ^
                      --headless -u 50 -r 5 -t 1m ^
@@ -255,7 +343,7 @@ pipeline {
                      docker run --rm --network ecommerce-test ^
                      -v "%CD%\\locust:/mnt" ^
                      -v "%CD%\\locust-results:/app" ^
-                     danielm11/locust:%IMAGE_TAG% ^
+                     danielm11/locust:latest ^
                      -f /mnt/test/favourite-service/locustfile.py ^
                      --host http://favourite-service-container:8800 ^
                      --headless -u 50 -r 5 -t 1m ^
