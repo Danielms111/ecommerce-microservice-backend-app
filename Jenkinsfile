@@ -349,6 +349,48 @@ pipeline {
              }
          }
 
+        stage('Analyze Locust Results') {
+             when {
+                 anyOf {
+                     branch 'develop'
+                     branch pattern: 'feature/.*', comparator: 'REGEXP'
+                 }
+             }
+             steps {
+                 script {
+                     def services = ['order-service', 'payment-service', 'favourite-service']
+                     def locustReport = ""
+
+                     services.each { service ->
+                         def csvPath = "locust-results/${service}-stress_stats.csv"
+                         if (fileExists(csvPath)) {
+                             def csvContent = readFile(csvPath).split('\n')
+                             def headers = csvContent[0].split(',') as List
+                             def summaryLine = csvContent[-1].split(',')
+
+                             def totalRequests = summaryLine[headers.indexOf('Request Count')]
+                             def failures = summaryLine[headers.indexOf('Failure Count')]
+                             def medianResponseTime = summaryLine[headers.indexOf('Median Response Time')]
+                             def averageResponseTime = summaryLine[headers.indexOf('Average Response Time')]
+                             def rps = summaryLine[headers.indexOf('Requests/s')]
+
+                             locustReport += """
+             ### 🔍 ${service}
+             - 📈 Total Requests: ${totalRequests}
+             - ❌ Failures: ${failures}
+             - 🕒 Avg. Response Time: ${averageResponseTime} ms
+             - 🚀 Throughput (RPS): ${rps}
+             """
+                             } else {
+                                 locustReport += "\n### 🔍 ${service}\n⚠️ No se encontró el archivo CSV de resultados.\n"
+                             }
+                         }
+                         writeFile file: 'locust-summary.md', text: locustReport
+                         archiveArtifacts artifacts: 'locust-summary.md', fingerprint: true
+                     }
+                 }
+         }
+
         stage('Generate Release Notes') {
             when {
                 anyOf {
