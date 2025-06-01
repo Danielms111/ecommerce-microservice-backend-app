@@ -173,11 +173,11 @@ pipeline {
 
                         for (service in services) {
                             bat "docker push danielm11/${service}:latest"
-
-                            // Push latest solo para master/main
-                            if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'main') {
-                                bat "docker push danielm11/${service}:latest"
-                            }
+                            bat """
+                                    setlocal enabledelayedexpansion
+                                    docker login -u danielm11 -p !credential!
+                                    endlocal
+                                """
                         }
                     }
                 }
