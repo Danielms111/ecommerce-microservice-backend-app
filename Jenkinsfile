@@ -161,12 +161,6 @@ pipeline {
 
         stage('Push Images to DockerHub') {
             steps {
-                def services = [
-                    'api-gateway', 'cloud-config', 'favourite-service', 'order-service',
-                    'payment-service', 'product-service', 'proxy-client',
-                    'service-discovery', 'shipping-service', 'user-service'
-                ]
-
                 withCredentials([string(credentialsId: 'password', variable: 'credential')]) {
                     bat """
                                 setlocal enabledelayedexpansion
@@ -174,7 +168,12 @@ pipeline {
                                 endlocal
                             """
 
-                    script{
+                    script {
+                        def services = [
+                            'api-gateway', 'cloud-config', 'favourite-service', 'order-service',
+                            'payment-service', 'product-service', 'proxy-client',
+                            'service-discovery', 'shipping-service', 'user-service'
+                        ]
                         for (service in services) {
                             bat "docker push danielm11/${service}:latest"
                         }
