@@ -359,8 +359,11 @@ pipeline {
              steps {
                  script {
                      def services = ['order-service', 'payment-service', 'favourite-service']
-                     def locustReport = ""
+                     def locustReport = """##📊 Performance Summary (Locust)
+##🧪 Descripción general
+Las siguientes métricas resumen los resultados de las pruebas de rendimiento ejecutadas con Locust para los microservicios clave del sistema. Estas pruebas simulan múltiples usuarios concurrentes realizando operaciones comunes como creación, lectura y eliminación de recursos.
 
+"""
                      services.each { service ->
                          def csvPath = "locust-results/${service}-stress_stats.csv"
                          if (fileExists(csvPath)) {
