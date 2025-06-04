@@ -109,7 +109,7 @@ pipeline {
                         -e SPRING_ZIPKIN_BASE_URL=http://zipkin-container:9411 ^
                         danielm11/service-discovery:latest
 
-                    call :waitForService http://localhost:8761/actuator/health
+                    call :waitForService http://localhost:8888/actuator/health
 
                     echo 🚀 Levantando CLOUD-CONFIG...
                     docker run -d --name cloud-config-container --network ecommerce-test -p 9296:9296 ^
