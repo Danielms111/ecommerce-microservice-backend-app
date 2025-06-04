@@ -160,7 +160,7 @@ pipeline {
             }
         }
 
-        stage('Push Images to DockerHub') {
+        /*stage('Push Images to DockerHub') {
             steps {
                 withCredentials([string(credentialsId: 'password', variable: 'credential')]) {
                     bat """
@@ -176,7 +176,7 @@ pipeline {
                     }
                 }
             }
-        }
+        }*/
 
         stage('Deploy to Development') {
             when {
