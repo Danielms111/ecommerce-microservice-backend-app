@@ -66,7 +66,7 @@ pipeline {
             }
         }
 
-        stage('Build Docker Images') {
+        /*stage('Build Docker Images') {
             steps {
                 script {
                     def services = [
@@ -85,7 +85,7 @@ pipeline {
                     }
                 }
             }
-        }
+        }*/
 
         stage('Levantar contenedores para pruebas') {
             when {
@@ -126,7 +126,7 @@ pipeline {
                     call :runService product-service 8500
                     call :runService shipping-service 8600
                     call :runService user-service 8700
-                    call :runService favourite-service 8800
+                    call :runService favourite-service 8900
 
                     echo ✅ Todos los contenedores están arriba y saludables.
                     exit /b 0
