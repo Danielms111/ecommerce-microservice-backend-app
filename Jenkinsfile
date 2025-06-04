@@ -104,12 +104,12 @@ pipeline {
                     docker run -d --name zipkin-container --network ecommerce-test -p 9411:9411 openzipkin/zipkin
 
                     echo 🚀 Levantando EUREKA...
-                    docker run -d --name service-discovery-container --network ecommerce-test -p 8888:8761 ^
+                    docker run -d --name service-discovery-container --network ecommerce-test -p 8761:8761 ^
                         -e SPRING_PROFILES_ACTIVE=dev ^
                         -e SPRING_ZIPKIN_BASE_URL=http://zipkin-container:9411 ^
                         danielm11/service-discovery:latest
 
-                    call :waitForService http://localhost:8888/actuator/health
+                    call :waitForService http://localhost:8761/actuator/health
 
                     echo 🚀 Levantando CLOUD-CONFIG...
                     docker run -d --name cloud-config-container --network ecommerce-test -p 9296:9296 ^
@@ -126,7 +126,7 @@ pipeline {
                     call :runService product-service 8500
                     call :runService shipping-service 8600
                     call :runService user-service 8700
-                    call :runService favourite-service 8900
+                    call :runService favourite-service 8800
 
                     echo ✅ Todos los contenedores están arriba y saludables.
                     exit /b 0
@@ -159,7 +159,7 @@ pipeline {
                 }
             }
         }
-
+        
         /*stage('Push Images to DockerHub') {
             steps {
                 withCredentials([string(credentialsId: 'password', variable: 'credential')]) {
