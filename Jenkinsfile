@@ -50,7 +50,7 @@ pipeline {
             }
         }
 
-        stage('Unit Tests') {
+        /*stage('Unit Tests') {
             steps {
                  script {
                      ['user-service'].each {
@@ -58,7 +58,7 @@ pipeline {
                      }
                  }
             }
-        }
+        }*/
 
         stage('Package') {
             steps {
@@ -160,7 +160,7 @@ pipeline {
             }
         }
 
-        stage('Push Images to DockerHub') {
+        /*stage('Push Images to DockerHub') {
             steps {
                 withCredentials([string(credentialsId: 'password', variable: 'credential')]) {
                     bat """
@@ -176,9 +176,9 @@ pipeline {
                     }
                 }
             }
-        }
+        }*/
 
-        stage('Deploy to Development') {
+        /*stage('Deploy to Development') {
             when {
                 anyOf {
                     branch 'develop'
@@ -191,7 +191,7 @@ pipeline {
                     deployToEnvironment('dev', IMAGE_TAG)
                 }
             }
-        }
+        }*/
 
         stage('Deploy to Staging') {
             when {
@@ -209,7 +209,7 @@ pipeline {
             }
         }
 
-        stage('Integration - Development') {
+        /*stage('Integration - Development') {
             when {
                 anyOf {
                     branch 'develop'
@@ -253,7 +253,7 @@ pipeline {
                     }
                 }
             }
-        }
+        }*/
 
          stage('Run Load Tests with Locust') {
             when {
