@@ -104,7 +104,7 @@ pipeline {
                     docker run -d --name zipkin-container --network ecommerce-test -p 9411:9411 openzipkin/zipkin
 
                     echo 🚀 Levantando EUREKA...
-                    docker run -d --name service-discovery-container --network ecommerce-test -p 8761:8761 ^
+                    docker run -d --name service-discovery-container --network ecommerce-test -p 8762:8761 ^
                         -e SPRING_PROFILES_ACTIVE=dev ^
                         -e SPRING_ZIPKIN_BASE_URL=http://zipkin-container:9411 ^
                         danielm11/service-discovery:latest
