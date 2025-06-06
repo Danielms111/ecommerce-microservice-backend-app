@@ -87,7 +87,71 @@ pipeline {
             }
         }
 
-        stage('Levantar contenedores para pruebas') {
+        /*stage('Push Images to DockerHub') {
+            steps {
+                withCredentials([string(credentialsId: 'password', variable: 'credential')]) {
+                    bat """
+                                setlocal enabledelayedexpansion
+                                docker login -u danielm11 -p !credential!
+                                endlocal
+                            """
+
+                    script {
+                        SERVICES.split().each { service ->
+                            bat "docker push danielm11/${service}:latest"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Integration - Development') {
+            when {
+                anyOf {
+                    branch 'develop'
+                    branch pattern: 'feature/.*', comparator: 'REGEXP'
+                }
+            }
+            steps {
+                script {
+                    ['user-service', 'payment-service'].each {
+                        bat "mvn verify -pl ${it}"
+                    }
+                }
+             }
+        }
+
+        stage('e2e Tests - Development') {
+            when {
+                anyOf {
+                    branch 'develop'
+                    branch pattern: 'feature/.*', comparator: 'REGEXP'
+                }
+            }
+            steps {
+                    bat "mvn verify -pl e2e-tests"
+            }
+        }
+
+        stage('Integration Tests - Staging') {
+            when {
+                anyOf {
+                    branch 'master'
+                    branch 'main'
+                    branch pattern: 'release/.*', comparator: 'REGEXP'
+                }
+            }
+            steps {
+                script {
+                    echo "Running integration tests"
+                    ['user-service', 'product-service'].each {
+                        bat "mvn verify -pl ${it}"
+                    }
+                }
+            }
+        }
+
+         stage('Levantar contenedores para pruebas') {
             when {
                 anyOf {
                     branch 'develop'
@@ -158,102 +222,7 @@ pipeline {
                     '''
                 }
             }
-        }
-
-        /*stage('Push Images to DockerHub') {
-            steps {
-                withCredentials([string(credentialsId: 'password', variable: 'credential')]) {
-                    bat """
-                                setlocal enabledelayedexpansion
-                                docker login -u danielm11 -p !credential!
-                                endlocal
-                            """
-
-                    script {
-                        SERVICES.split().each { service ->
-                            bat "docker push danielm11/${service}:latest"
-                        }
-                    }
-                }
-            }
-        }*/
-
-        stage('Deploy to Development') {
-            when {
-                anyOf {
-                    branch 'develop'
-                    branch pattern: 'feature/.*', comparator: 'REGEXP'
-                }
-            }
-            steps {
-                script {
-                    echo "Deploying to Development Environment"
-                    deployToEnvironment('dev', IMAGE_TAG)
-                }
-            }
-        }
-
-        stage('Deploy to Staging') {
-            when {
-                anyOf {
-                    branch 'master'
-                    branch 'main'
-                    branch pattern: 'release/.*', comparator: 'REGEXP'
-                }
-            }
-            steps {
-                script {
-                    echo "Deploying to Staging Environment"
-                    deployToEnvironment('stage', IMAGE_TAG)
-                }
-            }
-        }
-
-        stage('Integration - Development') {
-            when {
-                anyOf {
-                    branch 'develop'
-                    branch pattern: 'feature/.*', comparator: 'REGEXP'
-                }
-            }
-            steps {
-                script {
-                    ['user-service', 'payment-service'].each {
-                        bat "mvn verify -pl ${it}"
-                    }
-                }
-             }
-        }
-
-        stage('e2e Tests - Development') {
-            when {
-                anyOf {
-                    branch 'develop'
-                    branch pattern: 'feature/.*', comparator: 'REGEXP'
-                }
-            }
-            steps {
-                    bat "mvn verify -pl e2e-tests"
-            }
-        }
-
-        stage('Integration Tests - Staging') {
-            when {
-                anyOf {
-                    branch 'master'
-                    branch 'main'
-                    branch pattern: 'release/.*', comparator: 'REGEXP'
-                }
-            }
-            steps {
-                script {
-                    echo "Running integration tests"
-                    ['user-service', 'product-service'].each {
-                        bat "mvn verify -pl ${it}"
-                    }
-                }
-            }
-        }
+         }
 
          stage('Run Load Tests with Locust') {
             when {
@@ -394,7 +363,105 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
                  }
          }
 
-        stage('Generate Release Notes') {
+         stage('Detener y eliminar contenedores') {
+             when {
+                 anyOf {
+                     branch 'stage'
+                     expression { env.BRANCH_NAME.startsWith('feature/') }
+                 }
+             }
+             steps {
+                 script {
+                     bat """
+                     echo 🛑 Deteniendo y eliminando contenedores...
+
+                     docker rm -f locust || exit 0
+                     docker rm -f favourite-service-container || exit 0
+                     docker rm -f user-service-container || exit 0
+                     docker rm -f shipping-service-container || exit 0
+                     docker rm -f product-service-container || exit 0
+                     docker rm -f payment-service-container || exit 0
+                     docker rm -f order-service-container || exit 0
+                     docker rm -f cloud-config-container || exit 0
+                     docker rm -f service-discovery-container || exit 0
+                     docker rm -f zipkin-container || exit 0
+
+                     echo 🧹 Todos los contenedores eliminados
+                     """
+                 }
+             }
+         }
+
+         stage('Deploy to Development') {
+             when {
+                 anyOf {
+                     branch 'develop'
+                     branch pattern: 'feature/.*', comparator: 'REGEXP'
+                 }
+             }
+             steps {
+                 script {
+                     echo "Deploying to Development Environment"
+                     deployToEnvironment('dev', IMAGE_TAG)
+                 }
+             }
+         }
+
+         stage('Deploy to Staging') {
+             when {
+                 anyOf {
+                     branch 'master'
+                     branch 'main'
+                     branch pattern: 'release/.*', comparator: 'REGEXP'
+                 }
+             }
+             steps {
+                 script {
+                     echo "Deploying to Staging Environment"
+                     deployToEnvironment('stage', IMAGE_TAG)
+                 }
+             }
+         }*/
+
+         stage('Deploy Core Services') {
+              when { anyOf { branch 'master' } }
+              steps {
+                  echo Applying common configuration for ${environment}...
+                  kubectl apply -f k8s\\common-config.yaml
+
+                  echo Deploying Core services to ${environment}...
+                  bat "kubectl apply -f k8s\\zipkin -n ${K8S_NAMESPACE}"
+                  bat "kubectl rollout status deployment/zipkin -n ${K8S_NAMESPACE} --timeout=300s"
+
+                  bat "kubectl apply -f k8s\\service-discovery -n ${K8S_NAMESPACE}"
+                  bat "kubectl set image deployment/service-discovery service-discovery=danielm11/service-discovery:latest -n ${K8S_NAMESPACE}"
+                  bat "kubectl set env deployment/service-discovery SPRING_PROFILES_ACTIVE=prod -n ${K8S_NAMESPACE}"
+                  bat "kubectl rollout status deployment/service-discovery -n ${K8S_NAMESPACE} --timeout=300s"
+
+                  bat "kubectl apply -f k8s\\cloud-config -n ${K8S_NAMESPACE}"
+                  bat "kubectl set image deployment/cloud-config cloud-config=danielm11/cloud-config:latest -n ${K8S_NAMESPACE}"
+                  bat "kubectl set env deployment/cloud-config SPRING_PROFILES_ACTIVE=prod -n ${K8S_NAMESPACE}"
+                  bat "kubectl rollout status deployment/cloud-config -n ${K8S_NAMESPACE} --timeout=300s"
+              }
+         }
+
+         stage('Deploy Microservices') {
+              when { anyOf { branch 'master' } }
+              steps {
+                  script {
+                      SERVICES.split().each { svc ->
+                          if (!['locust', 'cloud-config', 'service-discovery'].contains(svc)) {
+                              bat "kubectl apply -f k8s\\${svc} -n ${K8S_NAMESPACE}"
+                              bat "kubectl set image deployment/${svc} ${svc}=danielm11/${svc}:latest -n ${K8S_NAMESPACE}"
+                              bat "kubectl set env deployment/${svc} SPRING_PROFILES_ACTIVE=prod -n ${K8S_NAMESPACE}"
+                              bat "kubectl rollout status deployment/${svc} -n ${K8S_NAMESPACE} --timeout=300s"
+                          }
+                      }
+                  }
+              }
+         }
+
+        /*stage('Generate Release Notes') {
             when {
                 anyOf {
                     branch 'master'
@@ -408,9 +475,9 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
                     generateReleaseNotes(RELEASE_VERSION, ENVIRONMENT)
                 }
             }
-        }
+        }*/
 
-        stage('Deploy to Production') {
+        /*stage('Deploy to Production') {
             when {
                 anyOf {
                     branch 'master'
@@ -432,7 +499,7 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
                 script {
                     if (params.DEPLOY_CONFIRMATION == 'Yes') {
                         echo "Deploying to Production Environment"
-                        deployToEnvironment('prod', IMAGE_TAG)
+                        //deployToEnvironment('prod', IMAGE_TAG)
 
                         // Crear tag de release en Git
                         createGitTag(RELEASE_VERSION)
@@ -444,7 +511,7 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
                     }
                 }
             }
-        }
+        }*/
     }
 
     post {
