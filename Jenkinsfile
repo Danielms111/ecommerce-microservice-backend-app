@@ -440,12 +440,12 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
 
                   bat "kubectl apply -f k8s\\service-discovery -n ${K8S_NAMESPACE}"
                   bat "kubectl set image deployment/service-discovery service-discovery=danielm11/service-discovery:latest -n ${K8S_NAMESPACE}"
-                  bat "kubectl set env deployment/service-discovery SPRING_PROFILES_ACTIVE=prod -n ${K8S_NAMESPACE}"
+                  bat "kubectl set env deployment/service-discovery SPRING_PROFILES_ACTIVE=dev -n ${K8S_NAMESPACE}"
                   bat "kubectl rollout status deployment/service-discovery -n ${K8S_NAMESPACE} --timeout=300s"
 
                   bat "kubectl apply -f k8s\\cloud-config -n ${K8S_NAMESPACE}"
                   bat "kubectl set image deployment/cloud-config cloud-config=danielm11/cloud-config:latest -n ${K8S_NAMESPACE}"
-                  bat "kubectl set env deployment/cloud-config SPRING_PROFILES_ACTIVE=prod -n ${K8S_NAMESPACE}"
+                  bat "kubectl set env deployment/cloud-config SPRING_PROFILES_ACTIVE=dev -n ${K8S_NAMESPACE}"
                   bat "kubectl rollout status deployment/cloud-config -n ${K8S_NAMESPACE} --timeout=300s"
               }
          }
@@ -458,7 +458,7 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
                           if (!['locust', 'cloud-config', 'service-discovery'].contains(svc)) {
                               bat "kubectl apply -f k8s\\${svc} -n ${K8S_NAMESPACE}"
                               bat "kubectl set image deployment/${svc} ${svc}=danielm11/${svc}:latest -n ${K8S_NAMESPACE}"
-                              bat "kubectl set env deployment/${svc} SPRING_PROFILES_ACTIVE=prod -n ${K8S_NAMESPACE}"
+                              bat "kubectl set env deployment/${svc} SPRING_PROFILES_ACTIVE=dev -n ${K8S_NAMESPACE}"
                               bat "kubectl rollout status deployment/${svc} -n ${K8S_NAMESPACE} --timeout=300s"
                           }
                       }
