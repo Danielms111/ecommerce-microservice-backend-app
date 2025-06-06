@@ -426,10 +426,12 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
          stage('Deploy Core Services') {
               when { anyOf { branch 'master' } }
               steps {
+                  bat """
                   echo Applying common configuration for ${ENVIRONMENT}...
                   kubectl apply -f k8s\\common-config.yaml
 
                   echo Deploying Core services to ${ENVIRONMENT}...
+                  """
                   bat "kubectl apply -f k8s\\zipkin -n ${K8S_NAMESPACE}"
                   bat "kubectl rollout status deployment/zipkin -n ${K8S_NAMESPACE} --timeout=300s"
 
