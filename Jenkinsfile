@@ -50,23 +50,13 @@ pipeline {
             }
         }
 
-        stage('Unit Tests') {
-            steps {
-                 script {
-                     ['user-service'].each {
-                         bat "mvn test -pl ${it}"
-                     }
-                 }
-            }
-        }
-
         stage('Package') {
             steps {
                 bat 'mvn package -DskipTests'
             }
         }
 
-        stage('Build Docker Images') {
+        /*stage('Build Docker Images') {
             steps {
                 script {
                     def services = [
@@ -85,7 +75,7 @@ pipeline {
                     }
                 }
             }
-        }
+        }*/
 
         /*stage('Push Images to DockerHub') {
             steps {
@@ -103,6 +93,16 @@ pipeline {
                     }
                 }
             }
+        }
+
+        stage('Unit Tests') {
+                    steps {
+                         script {
+                             ['user-service'].each {
+                                 bat "mvn test -pl ${it}"
+                             }
+                         }
+                    }
         }
 
         stage('Integration - Development') {
@@ -427,10 +427,13 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
               when { anyOf { branch 'master' } }
               steps {
                   bat """
-                  echo Applying common configuration for ${ENVIRONMENT}...
-                  kubectl apply -f k8s\\common-config.yaml
+                  echo Verifying kubectl context for ${ENVIRONMENT}...
+                  kubectl config current-context
 
-                  echo Deploying Core services to ${ENVIRONMENT}...
+                  echo Applying common configuration for ${ENVIRONMENT}...
+                  kubectl apply -f k8s\\common-config.yaml -n ${K8S_NAMESPACE}
+
+                  echo Deploying services to ${ENVIRONMENT}...
                   """
                   bat "kubectl apply -f k8s\\zipkin -n ${K8S_NAMESPACE}"
                   bat "kubectl rollout status deployment/zipkin -n ${K8S_NAMESPACE} --timeout=300s"
