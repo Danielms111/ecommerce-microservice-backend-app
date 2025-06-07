@@ -135,7 +135,7 @@ pipeline {
                                             -Dsonar.exclusions=**/test/**,**/target/** ^
                                             -Dsonar.coverage.exclusions=**/test/** ^
                                             -Dsonar.host.url=http://localhost:9000 ^
-                                            -Dsonar.login=!sonarqube-token!
+                                            -Dsonar.login=%sonarqube-token%
                                     """
                                 } else {
                                     bat """
@@ -144,7 +144,7 @@ pipeline {
                                             -Dsonar.projectName=${service} ^
                                             -Dsonar.exclusions=**/test/**,**/target/** ^
                                             -Dsonar.host.url=http://localhost:9000 ^
-                                            -Dsonar.login=!sonarqube-token!
+                                            -Dsonar.login=%sonarqube-token%
                                     """
                                 }
                             }
