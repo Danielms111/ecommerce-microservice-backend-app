@@ -114,39 +114,46 @@ pipeline {
 
         stage('Static Code Analysis - SonarQube') {
             steps {
-                script {
-                    def servicesWithCoverage = ['user-service']
+                withCredentials([string(credentialsId: 'sonarqube-token', variable: 'sonarqube-token')]) {
+                    script {
+                        def servicesWithCoverage = ['user-service']
 
-                    def allServices = [
-                        'api-gateway', 'cloud-config', 'favourite-service', 'order-service',
-                        'payment-service', 'product-service', 'proxy-client',
-                        'service-discovery', 'shipping-service', 'user-service'
-                    ]
+                        def allServices = [
+                            'api-gateway', 'cloud-config', 'favourite-service', 'order-service',
+                            'payment-service', 'product-service', 'proxy-client',
+                            'service-discovery', 'shipping-service', 'user-service'
+                        ]
 
-                    for (service in allServices) {
-                        dir("${service}") {
-                            if (servicesWithCoverage.contains(service)) {
-                                bat """
-                                    mvn clean verify sonar:sonar ^
-                                        -Dsonar.projectKey=${service} ^
-                                        -Dsonar.projectName=${service} ^
-                                        -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml ^
-                                        -Dsonar.exclusions=**/test/**,**/target/** ^
-                                        -Dsonar.coverage.exclusions=**/test/**
-                                """
-                            } else {
-                                bat """
-                                    mvn clean install sonar:sonar ^
-                                        -Dsonar.projectKey=${service} ^
-                                        -Dsonar.projectName=${service} ^
-                                        -Dsonar.exclusions=**/test/**,**/target/**
-                                """
+                        for (service in allServices) {
+                            dir("${service}") {
+                                if (servicesWithCoverage.contains(service)) {
+                                    bat """
+                                        mvn clean verify sonar:sonar ^
+                                            -Dsonar.projectKey=${service} ^
+                                            -Dsonar.projectName=${service} ^
+                                            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml ^
+                                            -Dsonar.exclusions=**/test/**,**/target/** ^
+                                            -Dsonar.coverage.exclusions=**/test/** ^
+                                            -Dsonar.host.url=http://localhost:9000 ^
+                                            -Dsonar.login=!sonarqube-token!
+                                    """
+                                } else {
+                                    bat """
+                                        mvn clean install sonar:sonar ^
+                                            -Dsonar.projectKey=${service} ^
+                                            -Dsonar.projectName=${service} ^
+                                            -Dsonar.exclusions=**/test/**,**/target/** ^
+                                            -Dsonar.host.url=http://localhost:9000 ^
+                                            -Dsonar.login=!sonarqube-token!
+                                    """
+                                }
                             }
                         }
                     }
                 }
             }
         }
+
 
 
         /*stage('Build Docker Images') {
