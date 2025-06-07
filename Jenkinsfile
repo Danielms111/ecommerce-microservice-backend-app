@@ -56,53 +56,14 @@ pipeline {
             }
         }
 
-        /*stage('Build Docker Images') {
-            steps {
-                script {
-                    def services = [
-                        'api-gateway', 'cloud-config', 'favourite-service', 'order-service',
-                        'payment-service', 'product-service', 'proxy-client',
-                        'service-discovery', 'shipping-service', 'user-service', 'locust'
-                    ]
-
-                    for (service in services) {
-                        bat "docker build -t danielm11/${service}:latest .\\${service}"
-
-                        // También crear tag latest para la rama master/main
-                        if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'develop') {
-                            bat "docker tag danielm11/${service}:latest danielm11/${service}:latest"
-                        }
-                    }
-                }
-            }
-        }*/
-
-        /*stage('Push Images to DockerHub') {
-            steps {
-                withCredentials([string(credentialsId: 'password', variable: 'credential')]) {
-                    bat """
-                                setlocal enabledelayedexpansion
-                                docker login -u danielm11 -p !credential!
-                                endlocal
-                            """
-
-                    script {
-                        SERVICES.split().each { service ->
-                            bat "docker push danielm11/${service}:latest"
-                        }
-                    }
-                }
-            }
-        }
-
         stage('Unit Tests') {
-                    steps {
-                         script {
-                             ['user-service'].each {
-                                 bat "mvn test -pl ${it}"
-                             }
-                         }
-                    }
+            steps {
+                 script {
+                     ['user-service'].each {
+                         bat "mvn test -pl ${it}"
+                     }
+                 }
+            }
         }
 
         stage('Integration - Development') {
@@ -133,7 +94,7 @@ pipeline {
             }
         }
 
-        stage('Integration Tests - Staging') {
+        /*stage('Integration Tests - Staging') {
             when {
                 anyOf {
                     branch 'master'
@@ -146,6 +107,82 @@ pipeline {
                     echo "Running integration tests"
                     ['user-service', 'product-service'].each {
                         bat "mvn verify -pl ${it}"
+                    }
+                }
+            }
+        }*/
+
+        stage('Static Code Analysis - SonarQube') {
+            steps {
+                script {
+                    def servicesWithCoverage = ['user-service']
+
+                    def allServices = [
+                        'api-gateway', 'cloud-config', 'favourite-service', 'order-service',
+                        'payment-service', 'product-service', 'proxy-client',
+                        'service-discovery', 'shipping-service', 'user-service'
+                    ]
+
+                    for (service in allServices) {
+                        dir("${service}") {
+                            if (servicesWithCoverage.contains(service)) {
+                                bat """
+                                    mvn clean verify sonar:sonar ^
+                                        -Dsonar.projectKey=${service} ^
+                                        -Dsonar.projectName=${service} ^
+                                        -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml ^
+                                        -Dsonar.exclusions=**/test/**,**/target/** ^
+                                        -Dsonar.coverage.exclusions=**/test/**
+                                """
+                            } else {
+                                bat """
+                                    mvn clean install sonar:sonar ^
+                                        -Dsonar.projectKey=${service} ^
+                                        -Dsonar.projectName=${service} ^
+                                        -Dsonar.exclusions=**/test/**,**/target/**
+                                """
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+
+        /*stage('Build Docker Images') {
+            steps {
+                script {
+                    def services = [
+                        'api-gateway', 'cloud-config', 'favourite-service', 'order-service',
+                        'payment-service', 'product-service', 'proxy-client',
+                        'service-discovery', 'shipping-service', 'user-service', 'locust'
+                    ]
+
+                    for (service in services) {
+                        bat "docker build -t danielm11/${service}:latest .\\${service}"
+
+                        // También crear tag latest para la rama master/main
+                        if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'develop') {
+                            bat "docker tag danielm11/${service}:latest danielm11/${service}:latest"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Push Images to DockerHub') {
+            steps {
+                withCredentials([string(credentialsId: 'password', variable: 'credential')]) {
+                    bat """
+                                setlocal enabledelayedexpansion
+                                docker login -u danielm11 -p !credential!
+                                endlocal
+                            """
+
+                    script {
+                        SERVICES.split().each { service ->
+                            bat "docker push danielm11/${service}:latest"
+                        }
                     }
                 }
             }
@@ -392,37 +429,6 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
              }
          }
 
-         stage('Deploy to Development') {
-             when {
-                 anyOf {
-                     branch 'develop'
-                     branch pattern: 'feature/.*', comparator: 'REGEXP'
-                 }
-             }
-             steps {
-                 script {
-                     echo "Deploying to Development Environment"
-                     deployToEnvironment('dev', IMAGE_TAG)
-                 }
-             }
-         }
-
-         stage('Deploy to Staging') {
-             when {
-                 anyOf {
-                     branch 'master'
-                     branch 'main'
-                     branch pattern: 'release/.*', comparator: 'REGEXP'
-                 }
-             }
-             steps {
-                 script {
-                     echo "Deploying to Staging Environment"
-                     deployToEnvironment('stage', IMAGE_TAG)
-                 }
-             }
-         }*/
-
          stage('Deploy Core Services') {
               when { anyOf { branch 'master' } }
               steps {
@@ -466,7 +472,7 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
               }
          }
 
-        /*stage('Generate Release Notes') {
+        stage('Generate Release Notes') {
             when {
                 anyOf {
                     branch 'master'
@@ -480,9 +486,9 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
                     generateReleaseNotes(RELEASE_VERSION, ENVIRONMENT)
                 }
             }
-        }*/
+        }
 
-        /*stage('Deploy to Production') {
+        stage('Deploy to Production') {
             when {
                 anyOf {
                     branch 'master'
@@ -516,8 +522,8 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
                     }
                 }
             }
-        }*/
-    }
+        }
+    }*/
 
     post {
         always {
@@ -559,53 +565,6 @@ def determinateEnvironment() {
     } else {
         return 'dev'
     }
-}
-
-def deployToEnvironment(environment, imageTag) {
-    bat """
-    echo Verifying kubectl context for ${environment}...
-    kubectl config current-context
-
-    echo Applying common configuration for ${environment}...
-    kubectl apply -f k8s\\common-config.yaml
-
-    echo Deploying services to ${environment}...
-    """
-
-    bat """
-    echo Deploying Zipkin...
-    kubectl apply -f k8s\\zipkin\\
-
-    echo Deploying Service Discovery...
-    kubectl apply -f k8s\\service-discovery\\
-
-    echo Deploying Cloud Config...
-    kubectl apply -f k8s\\cloud-config\\
-
-    echo Deploying Api gateway...
-    kubectl apply -f k8s\\api-gateway\\
-
-    echo Deploying Favourite service...
-    kubectl apply -f k8s\\favourite-service\\
-
-    echo Deploying Order service...
-    kubectl apply -f k8s\\order-service\\
-
-    echo Deploying Payment service...
-    kubectl apply -f k8s\\payment-service\\
-
-    echo Deploying Product service...
-    kubectl apply -f k8s\\product-service\\
-
-    echo Deploying Proxy client...
-    kubectl apply -f k8s\\proxy-client\\
-
-    echo Deploying Shipping service...
-    kubectl apply -f k8s\\shipping-service\\
-
-    echo Deploying User service...
-    kubectl apply -f k8s\\user-service\\
-    """
 }
 
 def generateReleaseNotes(version, environment) {
