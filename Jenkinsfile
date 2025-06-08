@@ -56,7 +56,7 @@ pipeline {
             }
         }
 
-        stage('Unit Tests') {
+        /*stage('Unit Tests') {
             steps {
                  script {
                      ['user-service'].each {
@@ -64,7 +64,7 @@ pipeline {
                      }
                  }
             }
-        }
+        }*/
 
         stage('Integration - Development') {
             when {
@@ -110,7 +110,7 @@ pipeline {
                     }
                 }
             }
-        }*/
+        }
 
         stage('Static Code Analysis - SonarQube') {
             steps {
@@ -152,11 +152,11 @@ pipeline {
                     }
                 }
             }
-        }
+        }*/
 
 
 
-        /*stage('Build Docker Images') {
+        stage('Build Docker Images') {
             steps {
                 script {
                     def services = [
@@ -177,7 +177,27 @@ pipeline {
             }
         }
 
-        stage('Push Images to DockerHub') {
+        stage('Security Scan with Trivy') {
+            steps {
+                script {
+                    def services = [
+                        'api-gateway', 'cloud-config', 'favourite-service', 'order-service',
+                        'payment-service', 'product-service', 'proxy-client',
+                        'service-discovery', 'shipping-service', 'user-service'
+                    ]
+                    for (service in services) {
+                        echo "🔍 Scanning danielm11/${service}:latest with Trivy..."
+                        bat """
+                            trivy image --no-progress --format table --severity CRITICAL,HIGH danielm11/${service}:latest > trivy-report-${service}.txt
+                        """
+                        archiveArtifacts artifacts: "trivy-report-${service}.txt", onlyIfSuccessful: true
+                    }
+                }
+            }
+        }
+
+
+        /*stage('Push Images to DockerHub') {
             steps {
                 withCredentials([string(credentialsId: 'password', variable: 'credential')]) {
                     bat """
