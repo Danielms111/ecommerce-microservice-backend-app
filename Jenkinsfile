@@ -132,8 +132,8 @@ pipeline {
                                             -Dsonar.projectKey=${service} ^
                                             -Dsonar.projectName=${service} ^
                                             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml ^
-                                            -Dsonar.exclusions=**/test/**,**/target/** ^
-                                            -Dsonar.coverage.exclusions=**/test/** ^
+                                            -Dsonar.exclusions=**-/test/**,**-/target/** ^
+                                            -Dsonar.coverage.exclusions=**-/test/** ^
                                             -Dsonar.host.url=http://localhost:9000 ^
                                             -Dsonar.login=%sonarqube-token%
                                     """
@@ -142,7 +142,7 @@ pipeline {
                                         mvn clean install sonar:sonar ^
                                             -Dsonar.projectKey=${service} ^
                                             -Dsonar.projectName=${service} ^
-                                            -Dsonar.exclusions=**/test/**,**/target/** ^
+                                            -Dsonar.exclusions=**-/test/**,**-/target/** ^
                                             -Dsonar.host.url=http://localhost:9000 ^
                                             -Dsonar.login=%sonarqube-token%
                                     """
