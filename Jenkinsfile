@@ -15,13 +15,15 @@ pipeline {
         SERVICES = 'service-discovery cloud-config api-gateway product-service user-service order-service payment-service shipping-service favourite-service proxy-client locust'
     }
 
-    stage('Fail Test') {
-        steps {
-            error "Fallo forzado para probar correo"
-        }
-    }
 
     stages {
+
+        stage('Fail Test') {
+            steps {
+                error "Fallo forzado para probar correo"
+            }
+        }
+        
         stage('Checkout') {
             steps {
                 checkout scm
