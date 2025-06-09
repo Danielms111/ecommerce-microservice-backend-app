@@ -15,6 +15,12 @@ pipeline {
         SERVICES = 'service-discovery cloud-config api-gateway product-service user-service order-service payment-service shipping-service favourite-service proxy-client locust'
     }
 
+    stage('Fail Test') {
+        steps {
+            error "Fallo forzado para probar correo"
+        }
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -594,11 +600,15 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
         }
         failure {
             echo "Pipeline failed for ${env.BRANCH_NAME}"
-            emailext (
-                subject: "Pipeline Failed: ${env.JOB_NAME} - ${env.BUILD_NUMBER}",
-                body: "Pipeline failed for branch ${env.BRANCH_NAME}. Check console output at ${env.BUILD_URL}",
-                to: "${env.CHANGE_AUTHOR_EMAIL}"
-            )
+            mail to: 'tu_correo@gmail.com',
+                         subject: "🔴 Falló el pipeline ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                         body: """El pipeline ha fallado.
+
+            Job: ${env.JOB_NAME}
+            Build: ${env.BUILD_NUMBER}
+            URL: ${env.BUILD_URL}
+
+            Revisa los logs para más información."""
         }
     }
 }
