@@ -10,7 +10,6 @@ pipeline {
         DOCKERHUB_CREDENTIALS = credentials('password')
         ENVIRONMENT = determinateEnvironment()
         IMAGE_TAG = "${ENVIRONMENT}-${env.BUILD_NUMBER}"
-        RELEASE_VERSION = "${env.BUILD_NUMBER}"
         GITHUB_TOKEN = credentials('github-token')
         K8S_NAMESPACE = 'ecommerce'
         SERVICES = 'service-discovery cloud-config api-gateway product-service user-service order-service payment-service shipping-service favourite-service proxy-client locust'
@@ -56,7 +55,7 @@ pipeline {
             }
         }
 
-        /*stage('Unit Tests') {
+        stage('Unit Tests') {
             steps {
                  script {
                      ['user-service'].each {
@@ -64,7 +63,7 @@ pipeline {
                      }
                  }
             }
-        }*/
+        }
 
         stage('Integration - Development') {
             when {
@@ -94,7 +93,7 @@ pipeline {
             }
         }
 
-        /*stage('Integration Tests - Staging') {
+        stage('Integration Tests - Staging') {
             when {
                 anyOf {
                     branch 'master'
@@ -132,8 +131,8 @@ pipeline {
                                             -Dsonar.projectKey=${service} ^
                                             -Dsonar.projectName=${service} ^
                                             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml ^
-                                            -Dsonar.exclusions=**-/test/**,**-/target/** ^
-                                            -Dsonar.coverage.exclusions=**-/test/** ^
+                                            -Dsonar.exclusions=**/test/**,**/target/** ^
+                                            -Dsonar.coverage.exclusions=**/test/** ^
                                             -Dsonar.host.url=http://localhost:9000 ^
                                             -Dsonar.login=%sonarqube-token%
                                     """
@@ -142,7 +141,7 @@ pipeline {
                                         mvn clean install sonar:sonar ^
                                             -Dsonar.projectKey=${service} ^
                                             -Dsonar.projectName=${service} ^
-                                            -Dsonar.exclusions=**-/test/**,**-/target/** ^
+                                            -Dsonar.exclusions=**/test/**,**/target/** ^
                                             -Dsonar.host.url=http://localhost:9000 ^
                                             -Dsonar.login=%sonarqube-token%
                                     """
@@ -152,7 +151,7 @@ pipeline {
                     }
                 }
             }
-        }*/
+        }
 
 
 
@@ -197,7 +196,7 @@ pipeline {
         }
 
 
-        /*stage('Push Images to DockerHub') {
+        stage('Push Images to DockerHub') {
             steps {
                 withCredentials([string(credentialsId: 'password', variable: 'credential')]) {
                     bat """
@@ -215,7 +214,7 @@ pipeline {
             }
         }
 
-         stage('Levantar contenedores para pruebas') {
+        stage('Levantar contenedores para pruebas') {
             when {
                 anyOf {
                     branch 'develop'
@@ -515,6 +514,26 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
             }
         }
 
+        stage('Semantic Versioning') {
+            when {
+                anyOf {
+                    branch 'master'
+                    branch 'main'
+                }
+            }
+            steps {
+                script {
+                    def lastTag = bat(script: 'git describe --tags --abbrev=0', returnStdout: true).trim()
+                    def changeType = determineSemverType()
+                    def newVersion = bumpVersion(lastTag.replace("v", ""), changeType)
+
+                    env.RELEASE_VERSION = "v${newVersion}"
+                    echo "🔖 Nuevo release semántico: ${env.RELEASE_VERSION}"
+                }
+            }
+        }
+
+
         stage('Deploy to Production') {
             when {
                 anyOf {
@@ -549,7 +568,7 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
                     }
                 }
             }
-        }*/
+        }
     }
 
     post {
@@ -581,6 +600,32 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
                 to: "${env.CHANGE_AUTHOR_EMAIL}"
             )
         }
+    }
+}
+
+def determineSemverType() {
+    def log = bat(script: 'git log -1 --pretty=%B', returnStdout: true).trim()
+
+    if (log.contains("BREAKING CHANGE")) {
+        return "major"
+    } else if (log.toLowerCase().startsWith("feat:")) {
+        return "minor"
+    } else if (log.toLowerCase().startsWith("fix:")) {
+        return "patch"
+    } else {
+        return "patch"
+    }
+}
+
+def bumpVersion(currentVersion, changeType) {
+    def (major, minor, patch) = currentVersion.tokenize('.').collect { it.toInteger() }
+    switch (changeType) {
+        case 'major':
+            return "${major + 1}.0.0"
+        case 'minor':
+            return "${major}.${minor + 1}.0"
+        case 'patch':
+            return "${major}.${minor}.${patch + 1}"
     }
 }
 
@@ -763,4 +808,5 @@ def sendReleaseNotification(status, version) {
         to: "danielm110417@gmail.com"
     )
 }
+
 
