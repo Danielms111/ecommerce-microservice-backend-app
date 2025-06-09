@@ -17,13 +17,6 @@ pipeline {
 
 
     stages {
-
-        stage('Fail Test') {
-            steps {
-                error "Fallo forzado para probar correo"
-            }
-        }
-        
         stage('Checkout') {
             steps {
                 checkout scm
@@ -602,7 +595,7 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
         }
         failure {
             echo "Pipeline failed for ${env.BRANCH_NAME}"
-            mail to: 'tu_correo@gmail.com',
+            mail to: 'danielm110417@gmail.com',
                          subject: "🔴 Falló el pipeline ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                          body: """El pipeline ha fallado.
 
