@@ -77,13 +77,18 @@ resilience4j:
         sliding-window-type: COUNT_BASED
 
 management:
-  health:
-    circuitbreakers:
-      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health, metrics, prometheus
   endpoint:
     health:
       show-details: always
-
+    prometheus:
+      enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
 
 
 

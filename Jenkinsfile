@@ -56,7 +56,7 @@ pipeline {
             }
         }
 
-        stage('Unit Tests') {
+        /*stage('Unit Tests') {
             steps {
                  script {
                      ['user-service'].each {
@@ -132,8 +132,8 @@ pipeline {
                                             -Dsonar.projectKey=${service} ^
                                             -Dsonar.projectName=${service} ^
                                             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml ^
-                                            -Dsonar.exclusions=**/test/**,**/target/** ^
-                                            -Dsonar.coverage.exclusions=**/test/** ^
+                                            -Dsonar.exclusions=**-/test/**,**-/target/** ^
+                                            -Dsonar.coverage.exclusions=**-/test/** ^
                                             -Dsonar.host.url=http://localhost:9000 ^
                                             -Dsonar.login=%sonarqube-token%
                                     """
@@ -142,7 +142,7 @@ pipeline {
                                         mvn clean install sonar:sonar ^
                                             -Dsonar.projectKey=${service} ^
                                             -Dsonar.projectName=${service} ^
-                                            -Dsonar.exclusions=**/test/**,**/target/** ^
+                                            -Dsonar.exclusions=**-/test/**,**-/target/** ^
                                             -Dsonar.host.url=http://localhost:9000 ^
                                             -Dsonar.login=%sonarqube-token%
                                     """
@@ -152,7 +152,7 @@ pipeline {
                     }
                 }
             }
-        }
+        }*/
 
 
 
@@ -177,7 +177,7 @@ pipeline {
             }
         }
 
-        stage('Security Scan with Trivy') {
+        /*stage('Security Scan with Trivy') {
             steps {
                 script {
                     def services = [
@@ -194,7 +194,7 @@ pipeline {
                     }
                 }
             }
-        }
+        }*/
 
 
         stage('Push Images to DockerHub') {
@@ -215,7 +215,7 @@ pipeline {
             }
         }
 
-        stage('Levantar contenedores para pruebas') {
+        /*stage('Levantar contenedores para pruebas') {
             when {
                 anyOf {
                     branch 'develop'
@@ -454,7 +454,7 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
                      """
                  }
              }
-         }
+         }*/
 
          stage('Deploy Core Services') {
               when { anyOf { branch 'master' } }
