@@ -213,7 +213,7 @@ pipeline {
                     }
                 }
             }
-        }*/
+        }
 
         /*stage('Levantar contenedores para pruebas') {
             when {
