@@ -7,6 +7,7 @@ services:
       - 8500:8500
     environment:
       - SPRING_PROFILES_ACTIVE=dev
-
+    volumes:
+      - ./logs/user-service:/app/logs
 
 
