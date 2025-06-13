@@ -570,7 +570,8 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
                 }
             }
         }*/
-
+    }
+    
     post {
         always {
             script {
@@ -812,5 +813,3 @@ def sendReleaseNotification(status, version) {
         to: "danielm110417@gmail.com"
     )
 }
-
-
