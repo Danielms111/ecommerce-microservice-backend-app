@@ -156,7 +156,7 @@ pipeline {
 
 
 
-        /*stage('Build Docker Images') {
+        stage('Build Docker Images') {
             steps {
                 script {
                     def services = [
@@ -177,7 +177,7 @@ pipeline {
             }
         }
 
-        stage('Security Scan with Trivy') {
+        /*stage('Security Scan with Trivy') {
             steps {
                 script {
                     def services = [
@@ -194,7 +194,7 @@ pipeline {
                     }
                 }
             }
-        }
+        }*/
 
 
         stage('Push Images to DockerHub') {
@@ -213,7 +213,7 @@ pipeline {
                     }
                 }
             }
-        }*/
+        }
 
         /*stage('Levantar contenedores para pruebas') {
             when {
