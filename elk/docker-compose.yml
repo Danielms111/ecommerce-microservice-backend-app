@@ -29,17 +29,19 @@ services:
     depends_on:
       - elasticsearch
 
-    filebeat:
-    image: docker.elastic.co/beats/filebeat:7.17.14
+  filebeat:
+    image: custom-filebeat
+    container_name: filebeat
+    user: root
     volumes:
-      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - ./logs/user-service:/logs/user-service
       - ./logs/product-service:/logs/product-service
       - ./logs/order-service:/logs/order-service
       - ./logs/payment-service:/logs/payment-service
       - ./logs/favourite-service:/logs/favourite-service
     depends_on:
-      - logstash
+      - elasticsearch
     networks:
       - elk
 

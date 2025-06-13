@@ -8,6 +8,6 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=dev
     volumes:
-      - ./logs/user-service:/app/logs
+      - ./logs/product-service:/logs/product-service
 
 
