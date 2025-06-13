@@ -156,7 +156,7 @@ pipeline {
 
 
 
-        /*stage('Build Docker Images') {
+        stage('Build Docker Images') {
             steps {
                 script {
                     def services = [
@@ -177,7 +177,7 @@ pipeline {
             }
         }
 
-        stage('Security Scan with Trivy') {
+        /*stage('Security Scan with Trivy') {
             steps {
                 script {
                     def services = [
@@ -194,7 +194,7 @@ pipeline {
                     }
                 }
             }
-        }
+        }*/
 
 
         stage('Push Images to DockerHub') {
@@ -456,7 +456,7 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
              }
          }*/
 
-         stage('Deploy Core Services') {
+         /*stage('Deploy Core Services') {
               when { anyOf { branch 'master' } }
               steps {
                   bat """
@@ -569,7 +569,7 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
                     }
                 }
             }
-        }
+        }*/
     }
 
     post {
