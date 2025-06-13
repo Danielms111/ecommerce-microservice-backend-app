@@ -23,26 +23,11 @@ services:
   kibana:
     image: docker.elastic.co/kibana/kibana:7.17.14
     ports:
-      - "5602:5601"
+      - "5601:5601"
     networks:
       - elk
     depends_on:
       - elasticsearch
-
-  filebeat:
-    image: custom-filebeat
-    container_name: filebeat
-    user: root
-    volumes:
-      - ./logs/user-service:/logs/user-service
-      - ./logs/product-service:/logs/product-service
-      - ./logs/order-service:/logs/order-service
-      - ./logs/payment-service:/logs/payment-service
-      - ./logs/favourite-service:/logs/favourite-service
-    depends_on:
-      - logstash
-    networks:
-      - elk
 
 networks:
   elk:

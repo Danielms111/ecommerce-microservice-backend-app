@@ -110,7 +110,7 @@ pipeline {
                     }
                 }
             }
-        }
+        }*/
 
         stage('Static Code Analysis - SonarQube') {
             steps {
@@ -152,11 +152,11 @@ pipeline {
                     }
                 }
             }
-        }*/
+        }
 
 
 
-        stage('Build Docker Images') {
+        /*stage('Build Docker Images') {
             steps {
                 script {
                     def services = [
@@ -177,7 +177,7 @@ pipeline {
             }
         }
 
-        /*stage('Security Scan with Trivy') {
+        stage('Security Scan with Trivy') {
             steps {
                 script {
                     def services = [
@@ -194,7 +194,7 @@ pipeline {
                     }
                 }
             }
-        }*/
+        }
 
 
         stage('Push Images to DockerHub') {
@@ -215,7 +215,7 @@ pipeline {
             }
         }
 
-        /*stage('Levantar contenedores para pruebas') {
+        stage('Levantar contenedores para pruebas') {
             when {
                 anyOf {
                     branch 'develop'
@@ -589,7 +589,7 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
             script {
                 if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'main') {
                     // Notificar éxito del release
-                    sendReleaseNotification('SUCCESS', RELEASE_VERSION)
+                    //sendReleaseNotification('SUCCESS', RELEASE_VERSION)
                 }
             }
         }
