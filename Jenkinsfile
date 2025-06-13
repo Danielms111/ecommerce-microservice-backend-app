@@ -570,7 +570,6 @@ Las siguientes métricas resumen los resultados de las pruebas de rendimiento ej
                 }
             }
         }*/
-    }
 
     post {
         always {
